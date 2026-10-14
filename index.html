@@ -1,0 +1,765 @@
+<!doctype html>
+<!DOCTYPE html>
+<html lang="hu">
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width,initial-scale=1" name="viewport"/>
+  <meta content="#050a0e" name="theme-color"/>
+  <title>
+   APEX &mdash; F1 Tipp 2026
+  </title>
+  <link href="./styles.css" rel="stylesheet"/>
+  <meta content="APEX F1 Tipp 2026 &ndash; versenyadatok, id&odblac;j&aacute;r&aacute;s &eacute;s profil." name="description"/>
+ </head>
+ <body>
+  <div class="app">
+   <aside class="sidebar">
+    <div class="brand">
+     <div class="brand-logo">
+      <span class="brand-mark">
+       ▰
+      </span>
+      APEX
+     </div>
+     <div class="brand-sub">
+      F1 TIPP 2026
+     </div>
+    </div>
+    <div class="season">
+     2026 SZEZON
+     <span>
+      ⌄
+     </span>
+    </div>
+    <nav aria-label="F&odblac; navig&aacute;ci&oacute;" class="nav">
+     <button class="active" data-nav="home">
+      <span>
+       ⌂
+      </span>
+      Kezd&odblac;lap
+     </button>
+     <button data-nav="tips">
+      <span>
+       ☑
+      </span>
+      Tippj&aacute;t&eacute;k
+     </button>
+     <button data-nav="ranking">
+      <span>
+       ♙
+      </span>
+      Ranglista
+     </button>
+     <button data-nav="calendar">
+      <span>
+       ▦
+      </span>
+      Napt&aacute;r
+     </button>
+     <button data-nav="teams">
+      <span>
+       ♧
+      </span>
+      Csapatok
+     </button>
+     <button data-nav="drivers">
+      <span>
+       ♙
+      </span>
+      Pil&oacute;t&aacute;k
+     </button>
+     <button data-nav="stats">
+      <span>
+       ▥
+      </span>
+      Statisztik&aacute;k
+     </button>
+     <div class="divider">
+     </div>
+     <button data-nav="rules">
+      <span>
+       ⓘ
+      </span>
+      Szab&aacute;lyok
+     </button>
+     <button data-nav="settings">
+      <span>
+       ⚙
+      </span>
+      Be&aacute;ll&iacute;t&aacute;sok
+     </button>
+    </nav>
+    <div class="sidebar-bottom">
+     BUILT FOR THE GRID
+     <br/>
+     UNOFFICIAL FAN PROJECT
+    </div>
+   </aside>
+   <div class="main">
+    <header class="topbar">
+     <div class="countdown-label">
+      K&ouml;vetkez&odblac; futamig
+     </div>
+     <div class="countdown">
+      <div class="count">
+       <strong id="days">
+        &mdash;
+       </strong>
+       <small>
+        NAP
+       </small>
+      </div>
+      <div class="count">
+       <strong id="hours">
+        &mdash;
+       </strong>
+       <small>
+        &Oacute;RA
+       </small>
+      </div>
+      <div class="count">
+       <strong id="minutes">
+        &mdash;
+       </strong>
+       <small>
+        PERC
+       </small>
+      </div>
+      <div class="count">
+       <strong id="seconds">
+        &mdash;
+       </strong>
+       <small>
+        MP
+       </small>
+      </div>
+     </div>
+     <span class="top-icon">
+      ♧
+     </span>
+     <div class="user-chip">
+      <img alt="Profilk&eacute;p" class="avatar" id="headerAvatar"/>
+      <div>
+       <strong id="headerName">
+        Vend&eacute;g
+       </strong>
+       <small id="headerTeam">
+        Jelentkezz be
+       </small>
+      </div>
+      <button class="secondary" id="loginOpen" style="padding:7px 10px;font-size:11px">
+       Bel&eacute;p&eacute;s
+      </button>
+      <button class="secondary hidden" id="logoutButton" style="padding:7px 10px;font-size:11px">
+       Kil&eacute;p&eacute;s
+      </button>
+     </div>
+    </header>
+    <main class="content">
+     <section class="hero">
+      <div class="hero-content">
+       <div>
+        <span class="f1-mark">
+         F1
+        </span>
+        <span class="season-tag">
+         2026
+        </span>
+       </div>
+       <div class="eyebrow">
+        K&Ouml;VETKEZ&Odblac; VERSENY
+       </div>
+       <h1 id="heroTitle">
+        K&Ouml;VETKEZ&Odblac;
+        <br/>
+        NAGYD&Iacute;J
+       </h1>
+       <div class="hero-meta">
+        &target;
+        <span id="heroCircuit">
+         Aut&oacute;dromo Hermanos Rodr&iacute;guez
+        </span>
+       </div>
+       <div class="hero-meta">
+        ▦
+        <span id="heroDate">
+         2027. okt&oacute;ber 29&ndash;31.
+        </span>
+       </div>
+       <div class="hero-actions">
+        <button class="primary" id="heroTipButton">
+         ⚑ Tippjeim megad&aacute;sa　 &rarr;
+        </button>
+        <button class="secondary" id="raceDetailsButton">
+         Versenyh&eacute;tv&eacute;ge r&eacute;szletei
+        </button>
+       </div>
+       <div class="hero-status" id="heroStatus">
+        A 2026-os szezon k&ouml;vetkez&odblac; futama
+       </div>
+      </div>
+     </section>
+     <section class="cards">
+      <div class="panel track-panel">
+       <div class="panel-head">
+        P&aacute;lyaadatok
+       </div>
+       <div class="panel-body track-layout">
+        <div>
+         <svg aria-label="Mexik&oacute; p&aacute;lyarajz" class="track-svg" viewbox="0 0 260 140">
+          <path d="M30 35 L205 22 Q223 22 214 45 L192 84 Q187 98 171 91 L153 76 L128 70 L112 51 L72 47 L58 59 L37 56 Q18 50 30 35Z M153 76 L151 105 Q148 119 135 112 L112 92 L84 82">
+          </path>
+         </svg>
+         <div class="track-caption">
+          🇲🇽 AUT&Oacute;DROMO HERMANOS RODR&Iacute;GUEZ
+         </div>
+        </div>
+        <div class="track-stats">
+         <div class="stat-row">
+          <span>
+           Hossz
+          </span>
+          <strong id="trackLength">
+           4,304 km
+          </strong>
+         </div>
+         <div class="stat-row">
+          <span>
+           Kanyarok
+          </span>
+          <strong id="trackCorners">
+           17
+          </strong>
+         </div>
+         <div class="stat-row">
+          <span>
+           Versenyt&aacute;v
+          </span>
+          <strong id="raceDistance">
+           305,354 km
+          </strong>
+         </div>
+         <div class="stat-row">
+          <span>
+           K&ouml;rrekord
+          </span>
+          <strong>
+           1:17.774
+          </strong>
+         </div>
+        </div>
+       </div>
+      </div>
+      <div class="panel weather-panel">
+       <div class="panel-head">
+        V&aacute;rhat&oacute; id&odblac;j&aacute;r&aacute;s
+       </div>
+       <div class="panel-body">
+        <div class="weather-icon" id="weatherIcon">
+         🌤️
+        </div>
+        <div class="weather-temp" id="weatherTemp">
+         &mdash;&deg;C
+        </div>
+        <div class="weather-summary" id="weatherSummary">
+         A h&eacute;tv&eacute;ge el&odblac;tt v&aacute;lik el&eacute;rhet&odblac;v&eacute;
+        </div>
+        <div class="weather-list">
+         <div>
+          <span>
+           ♧ Csapad&eacute;k
+          </span>
+          <strong id="weatherRain">
+           &mdash;
+          </strong>
+         </div>
+         <div>
+          <span>
+           ♧ Sz&eacute;l
+          </span>
+          <strong id="weatherWind">
+           &mdash;
+          </strong>
+         </div>
+         <div>
+          <span>
+           ♧ P&aacute;ratartalom
+          </span>
+          <strong id="weatherHumidity">
+           &mdash;
+          </strong>
+         </div>
+        </div>
+        <div class="tyre-note" id="weatherSource">
+         Open-Meteo el&odblac;rejelz&eacute;s
+        </div>
+       </div>
+      </div>
+      <div class="panel">
+       <div class="panel-head">
+        P&aacute;lya jellemz&odblac;i
+       </div>
+       <div class="panel-body">
+        <div class="bars">
+         <div class="bar-row">
+          <span>
+           Leszor&iacute;t&oacute;er&odblac;
+          </span>
+          <div class="bar">
+           <i class="on">
+           </i>
+           <i class="on">
+           </i>
+           <i>
+           </i>
+           <i>
+           </i>
+          </div>
+          <em>
+           K&ouml;zepes
+          </em>
+         </div>
+         <div class="bar-row">
+          <span>
+           Gumikop&aacute;s
+          </span>
+          <div class="bar">
+           <i class="on">
+           </i>
+           <i class="on">
+           </i>
+           <i class="on">
+           </i>
+           <i>
+           </i>
+          </div>
+          <em>
+           K&ouml;zepes
+          </em>
+         </div>
+         <div class="bar-row">
+          <span>
+           F&eacute;kt&aacute;vok
+          </span>
+          <div class="bar">
+           <i class="on">
+           </i>
+           <i class="on">
+           </i>
+           <i class="on">
+           </i>
+           <i>
+           </i>
+          </div>
+          <em>
+           Magas
+          </em>
+         </div>
+         <div class="bar-row">
+          <span>
+           Egyenesek
+          </span>
+          <div class="bar">
+           <i class="on">
+           </i>
+           <i class="on">
+           </i>
+           <i>
+           </i>
+           <i>
+           </i>
+          </div>
+          <em>
+           Hossz&uacute;
+          </em>
+         </div>
+        </div>
+        <p class="tyre-note">
+         T&aacute;j&eacute;koztat&oacute; p&aacute;lyaprofil; a jellemz&odblac;k helysz&iacute;nenk&eacute;nt szerkeszthet&odblac;k.
+        </p>
+       </div>
+      </div>
+      <div class="panel tyre-panel">
+       <div class="panel-head">
+        Aktu&aacute;lis h&eacute;tv&eacute;ge gumiv&aacute;laszt&eacute;ka
+        <span style="color:var(--muted);font-size:10px;float:right">
+         PIRELLI
+        </span>
+       </div>
+       <div class="panel-body">
+        <div class="tyres">
+         <div class="tyre hard">
+          <div class="tyre-mark">
+          </div>
+          <strong>
+           HARD
+          </strong>
+          <small id="hardCompound">
+           Hivatalos adat v&aacute;rhat&oacute;
+          </small>
+         </div>
+         <div class="tyre medium">
+          <div class="tyre-mark">
+          </div>
+          <strong>
+           MEDIUM
+          </strong>
+          <small id="mediumCompound">
+           Hivatalos adat v&aacute;rhat&oacute;
+          </small>
+         </div>
+         <div class="tyre soft">
+          <div class="tyre-mark">
+          </div>
+          <strong>
+           SOFT
+          </strong>
+          <small id="softCompound">
+           Hivatalos adat v&aacute;rhat&oacute;
+          </small>
+         </div>
+        </div>
+        <div class="tyre-note" id="tyreSource">
+         A 2026-os versenyh&eacute;tv&eacute;ge hivatalos gumiv&aacute;laszt&eacute;ka bet&ouml;lt&eacute;s alatt.
+        </div>
+       </div>
+      </div>
+     </section>
+     <div class="section-head">
+      <h2>
+       Tippelhet&odblac; kateg&oacute;ri&aacute;k
+      </h2>
+      <p>
+       A tippjeidet a versenyh&eacute;tv&eacute;ge el&odblac;tt b&aacute;rmikor m&oacute;dos&iacute;thatod.
+      </p>
+      <button class="secondary" id="categoryTipButton" style="padding:9px 14px;border-color:var(--red)">
+       Tippjeim megad&aacute;sa　 &rarr;
+      </button>
+     </div>
+     <section class="categories">
+      <button class="category" data-category="winner">
+       <span class="cat-img">
+       </span>
+       <span class="cat-icon">
+        🏆
+       </span>
+       <span class="cat-text">
+        <strong>
+         Futamgy&odblac;ztes
+        </strong>
+        <small>
+         Ki nyeri a k&ouml;vetkez&odblac; nagyd&iacute;jat?
+        </small>
+       </span>
+      </button>
+      <button class="category" data-category="pole">
+       <span class="cat-img">
+       </span>
+       <span class="cat-icon">
+        🏁
+       </span>
+       <span class="cat-text">
+        <strong>
+         Pole poz&iacute;ci&oacute;
+        </strong>
+        <small>
+         Ki szerzi meg a pole-t?
+        </small>
+       </span>
+      </button>
+      <button class="category" data-category="podium">
+       <span class="cat-img">
+       </span>
+       <span class="cat-icon">
+        🥇
+       </span>
+       <span class="cat-text">
+        <strong>
+         Dobog&oacute;sok
+        </strong>
+        <small>
+         Ki lesz a top 3-ban?
+        </small>
+       </span>
+      </button>
+      <button class="category" data-category="fastest">
+       <span class="cat-img">
+       </span>
+       <span class="cat-icon">
+        ⚡
+       </span>
+       <span class="cat-text">
+        <strong>
+         Leggyorsabb k&ouml;r
+        </strong>
+        <small>
+         Ki futja a leggyorsabb k&ouml;rt?
+        </small>
+       </span>
+      </button>
+      <button class="category" data-category="safety">
+       <span class="cat-img">
+       </span>
+       <span class="cat-icon">
+        🚨
+       </span>
+       <span class="cat-text">
+        <strong>
+         Safety Car
+        </strong>
+        <small>
+         Lesz Safety Car a futamon?
+        </small>
+       </span>
+      </button>
+      <button class="category" data-category="special">
+       <span class="cat-img">
+       </span>
+       <span class="cat-icon">
+        🎯
+       </span>
+       <span class="cat-text">
+        <strong>
+         K&uuml;l&ouml;nleges tippek
+        </strong>
+        <small>
+         Tov&aacute;bbi izgalmas tippek&hellip;
+        </small>
+       </span>
+      </button>
+     </section>
+     <section class="lower-grid">
+      <div class="panel">
+       <div class="panel-head">
+        P&aacute;lya statisztik&aacute;k (2026)
+       </div>
+       <div class="mini-stats">
+        <div class="mini-stat">
+         <small>
+          EL&Odblac;Z&Eacute;SEK SZ&Aacute;MA
+         </small>
+         <strong>
+          API
+         </strong>
+         <p>
+          2026-os versenyadatok
+         </p>
+        </div>
+        <div class="mini-stat">
+         <small>
+          SAFETY CAR ES&Eacute;LY
+         </small>
+         <strong>
+          Friss&uuml;l
+         </strong>
+         <p>
+          p&aacute;lyaf&uuml;gg&odblac; profil
+         </p>
+        </div>
+        <div class="mini-stat">
+         <small>
+          GUMIK
+         </small>
+         <strong id="statsTyres">
+          C1&ndash;C5
+         </strong>
+         <p>
+          hivatalos kioszt&aacute;s szerint
+         </p>
+        </div>
+       </div>
+      </div>
+      <div class="panel">
+       <div class="panel-head">
+        P&aacute;lyarekordok
+       </div>
+       <div class="record-grid">
+        <div class="record">
+         <span class="record-icon">
+          ⏱️
+         </span>
+         <small>
+          K&ouml;rrekord
+         </small>
+         <strong id="recordLap">
+          API
+         </strong>
+         <p>
+          p&aacute;lyarekord &ndash; k&eacute;s&odblac;bbi bek&ouml;t&eacute;s
+         </p>
+        </div>
+        <div class="record">
+         <span class="record-icon">
+          🏆
+         </span>
+         <small>
+          Legt&ouml;bb gy&odblac;zelem
+         </small>
+         <strong id="recordWinner">
+          API
+         </strong>
+         <p>
+          legt&ouml;bb gy&odblac;zelem &ndash; k&eacute;s&odblac;bbi bek&ouml;t&eacute;s
+         </p>
+        </div>
+        <div class="record">
+         <span class="record-icon">
+          ⚡
+         </span>
+         <small>
+          Leggyorsabb verseny
+         </small>
+         <strong id="recordRace">
+          API
+         </strong>
+         <p>
+          versenyrekord &ndash; k&eacute;s&odblac;bbi bek&ouml;t&eacute;s
+         </p>
+        </div>
+       </div>
+      </div>
+      <div class="panel">
+       <div class="panel-head">
+        &Eacute;rdekess&eacute;g
+       </div>
+       <div class="interesting" id="interestingFact">
+        ⓘ A Mexik&oacute;i Nagyd&iacute;j 2 285 m&eacute;terrel a tengerszint felett fekszik. A ritk&aacute;bb leveg&odblac; komoly kih&iacute;v&aacute;s a motoroknak &eacute;s az aerodinamik&aacute;nak.
+       </div>
+      </div>
+     </section>
+     <footer class="footer">
+      <span>
+       APEX / F1 TIPP 2026
+      </span>
+      <span>
+       BUILT FOR THE GRID
+      </span>
+      <span>
+       Unofficial fan project
+      </span>
+     </footer>
+    </main>
+   </div>
+  </div>
+  <div class="login-overlay hidden" id="settingsOverlay">
+   <div class="login-box">
+    <h2>
+     Profilbe&aacute;ll&iacute;t&aacute;sok
+    </h2>
+    <label for="displayName">
+     Megjelen&iacute;tett n&eacute;v
+    </label>
+    <input id="displayName" style="width:100%;padding:12px;margin:7px 0 14px;background:#071018;color:white;border:1px solid #2b3d4b;border-radius:8px"/>
+    <label for="username">
+     Felhaszn&aacute;l&oacute;n&eacute;v
+    </label>
+    <input id="username" placeholder="pl. ApexFan27" style="width:100%;padding:12px;margin:7px 0 14px;background:#071018;color:white;border:1px solid #2b3d4b;border-radius:8px"/>
+    <label for="teamSelect">
+     Kedvenc csapat
+    </label>
+    <select id="teamSelect" style="width:100%;padding:12px;margin:7px 0 14px;background:#071018;color:white;border:1px solid #2b3d4b;border-radius:8px">
+     <option value="ferrari">
+      Ferrari
+     </option>
+     <option value="mclaren">
+      McLaren
+     </option>
+     <option value="mercedes">
+      Mercedes
+     </option>
+     <option value="redbull">
+      Red Bull
+     </option>
+     <option value="williams">
+      Williams
+     </option>
+     <option value="astonmartin">
+      Aston Martin
+     </option>
+     <option value="alpine">
+      Alpine
+     </option>
+     <option value="racingbulls">
+      Racing Bulls
+     </option>
+     <option value="audi">
+      Audi
+     </option>
+     <option value="haas">
+      Haas
+     </option>
+    </select>
+    <label for="driverSelect">
+     Kedvenc pil&oacute;ta
+    </label>
+    <select id="driverSelect" style="width:100%;padding:12px;margin:7px 0 14px;background:#071018;color:white;border:1px solid #2b3d4b;border-radius:8px">
+     <option value="leclerc">
+      Charles Leclerc
+     </option>
+     <option value="hamilton">
+      Lewis Hamilton
+     </option>
+     <option value="verstappen">
+      Max Verstappen
+     </option>
+     <option value="norris">
+      Lando Norris
+     </option>
+     <option value="piastri">
+      Oscar Piastri
+     </option>
+     <option value="russell">
+      George Russell
+     </option>
+     <option value="alonso">
+      Fernando Alonso
+     </option>
+     <option value="sainz">
+      Carlos Sainz
+     </option>
+    </select>
+    <label>
+     <input id="standardTheme" type="checkbox"/>
+     Standard piros t&eacute;ma (csapatsz&iacute;n helyett)
+    </label>
+    <button class="primary" id="saveProfileButton">
+     Be&aacute;ll&iacute;t&aacute;sok ment&eacute;se
+    </button>
+    <button class="secondary" id="settingsCancel">
+     M&eacute;gse
+    </button>
+    <p id="profileStatus">
+    </p>
+   </div>
+  </div>
+  <div class="login-overlay hidden" id="loginOverlay">
+   <div class="login-box">
+    <div class="brand-logo">
+     <span class="brand-mark">
+      ▰
+     </span>
+     APEX
+    </div>
+    <h2>
+     Bel&eacute;p&eacute;s a tippj&aacute;t&eacute;kba
+    </h2>
+    <p>
+     Google-fi&oacute;kkal jelentkezz be. A megl&eacute;v&odblac; Firebase Authentication &eacute;s Firestore-profilod haszn&aacute;ljuk.
+    </p>
+    <button class="primary" id="loginButton">
+     Bel&eacute;p&eacute;s Google-fi&oacute;kkal
+    </button>
+    <button class="secondary" id="loginCancel">
+     M&eacute;gse
+    </button>
+    <p id="loginStatus" role="status">
+    </p>
+   </div>
+  </div>
+  <div class="toast hidden" id="toast" role="status">
+  </div>
+  <script src="./app.js" type="module">
+  </script>
+ </body>
+</html>
+
