@@ -1,6 +1,6 @@
 :root {
   --bg:#050a0e;
-  --panel:#081219eF;
+  --panel:#081219ef;
   --line:#1b2a35;
   --muted:#a6b4c4;
   --red:#f20a24;
@@ -89,7 +89,8 @@ button {
   width:23px;
   text-align:center;
 }
-.nav button.active,.nav button:hover {
+.nav button.active,
+.nav button:hover {
   background:linear-gradient(90deg,var(--accent),#071018);
   border-color:var(--accent);
   color:white;
