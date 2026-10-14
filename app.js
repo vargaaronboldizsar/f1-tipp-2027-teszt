@@ -505,18 +505,19 @@ function showRaceSchedule() {
 }
 
 
+
 function updateTipLocks() {
   const select = $('tipRaceSelect');
   const option = select.options[select.selectedIndex];
 
-  const poleDriver = $('tipPoleDriver');
-  const poleTime = $('tipPoleTime');
-  const winnerDriver = $('tipWinnerDriver');
+  const poleField = $('tipPoleDriver');
+  const timeField = $('tipPoleTime');
+  const winnerField = $('tipWinnerDriver');
 
   if (!option || !option.value) {
-    poleDriver.disabled = false;
-    poleTime.disabled = false;
-    winnerDriver.disabled = false;
+    poleField.disabled = false;
+    timeField.disabled = false;
+    winnerField.disabled = false;
     return;
   }
 
@@ -530,6 +531,7 @@ function updateTipLocks() {
       : '00:00:00Z';
 
     const deadline = new Date(`${date}T${utcTime}`);
+
     return !Number.isNaN(deadline.getTime()) &&
       Date.now() >= deadline.getTime();
   }
@@ -554,10 +556,14 @@ function updateTipLocks() {
         option.dataset.raceTime
       );
 
-  poleDriver.disabled = poleLocked;
-  poleTime.disabled = poleLocked;
-  winnerDriver.disabled = winnerLocked;
+  poleField.disabled = poleLocked;
+
+  // A sprint event does not use the normal GP pole-time field.
+  timeField.disabled = isSprint || poleLocked;
+
+  winnerField.disabled = winnerLocked;
 }
+
 
 
 $('tipRaceSelect').addEventListener('change', showRaceSchedule);
