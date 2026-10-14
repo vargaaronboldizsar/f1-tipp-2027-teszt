@@ -523,12 +523,34 @@ async function loadTipData() {
     const races = racesData.MRData?.RaceTable?.Races || [];
     const drivers = driversData.MRData?.DriverTable?.Drivers || [];
 
-    races.forEach(race => {
-      const option = document.createElement('option');
-      option.value = String(race.round);
-      option.textContent = `${race.round}. futam – ${race.raceName}`;
-      raceSelect.appendChild(option);
-    });
+    
+races.forEach(race => {
+  const option = document.createElement('option');
+  option.value = String(race.round);
+
+  const hasSprint = Boolean(race.Sprint || race.SprintQualifying);
+  option.textContent =
+    `${race.round}. futam – ${race.raceName}` +
+    (hasSprint ? ' · SPRINT HÉTVÉGE' : '');
+
+  option.dataset.raceName = race.raceName || '';
+  option.dataset.raceDate = race.date || '';
+  option.dataset.raceTime = race.time || '';
+
+  option.dataset.qualifyingDate = race.Qualifying?.date || '';
+  option.dataset.qualifyingTime = race.Qualifying?.time || '';
+
+  option.dataset.sprintQualifyingDate =
+    race.SprintQualifying?.date || '';
+  option.dataset.sprintQualifyingTime =
+    race.SprintQualifying?.time || '';
+
+  option.dataset.sprintDate = race.Sprint?.date || '';
+  option.dataset.sprintTime = race.Sprint?.time || '';
+
+  raceSelect.appendChild(option);
+});
+
 
     drivers.forEach(driver => {
       const name = `${driver.givenName} ${driver.familyName}`;
