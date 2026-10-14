@@ -387,11 +387,14 @@ async function saveTips() {
   return;
 }
 
-  if (!/^\d+:\d{2}\.\d{3}$/.test(poleTime)) {
-    $('tipsStatus').textContent =
-      'A pole idő formátuma például: 1:32.456';
-    return;
-  }
+ if (
+  !$('tipPoleTime').disabled &&
+  !/^\d+:\d{2}\.\d{3}$/.test(poleTime)
+) {
+  $('tipsStatus').textContent =
+    'A pole idő formátuma például: 1:32.456';
+  return;
+}
 
   const raceSelect = $('tipRaceSelect');
   const raceName = raceSelect.options[raceSelect.selectedIndex].textContent;
