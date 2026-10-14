@@ -584,32 +584,45 @@ async function loadTipData() {
     const drivers = driversData.MRData?.DriverTable?.Drivers || [];
 
     
+
 races.forEach(race => {
-  const option = document.createElement('option');
-  option.value = String(race.round);
-
   const hasSprint = Boolean(race.Sprint || race.SprintQualifying);
-  option.textContent =
-    `${race.round}. futam – ${race.raceName}` +
-    (hasSprint ? ' · Sprint hétvége' : '');
+  const baseName = (race.raceName || '').replace(/ Grand Prix$/i, '');
 
-  option.dataset.raceName = race.raceName || '';
-  option.dataset.raceDate = race.date || '';
-  option.dataset.raceTime = race.time || '';
+  function addRaceOption(eventType, label, eventId) {
+    const option = document.createElement('option');
+    option.value = eventId;
+    option.textContent = label;
 
-  option.dataset.qualifyingDate = race.Qualifying?.date || '';
-  option.dataset.qualifyingTime = race.Qualifying?.time || '';
+    option.dataset.raceName = label;
+    option.dataset.raceDate = race.date || '';
+    option.dataset.raceTime = race.time || '';
+    option.dataset.qualifyingDate = race.Qualifying?.date || '';
+    option.dataset.qualifyingTime = race.Qualifying?.time || '';
+    option.dataset.sprintQualifyingDate = race.SprintQualifying?.date || '';
+    option.dataset.sprintQualifyingTime = race.SprintQualifying?.time || '';
+    option.dataset.sprintDate = race.Sprint?.date || '';
+    option.dataset.sprintTime = race.Sprint?.time || '';
+    option.dataset.eventType = eventType;
 
-  option.dataset.sprintQualifyingDate =
-    race.SprintQualifying?.date || '';
-  option.dataset.sprintQualifyingTime =
-    race.SprintQualifying?.time || '';
+    raceSelect.appendChild(option);
+  }
 
-  option.dataset.sprintDate = race.Sprint?.date || '';
-  option.dataset.sprintTime = race.Sprint?.time || '';
+  if (hasSprint) {
+    addRaceOption(
+      'sprint',
+      `${baseName} Sprint`,
+      `${race.round}-sprint`
+    );
+  }
 
-  raceSelect.appendChild(option);
+  addRaceOption(
+    'gp',
+    `${baseName} GP`,
+    String(race.round)
+  );
 });
+
 
 
     drivers.forEach(driver => {
