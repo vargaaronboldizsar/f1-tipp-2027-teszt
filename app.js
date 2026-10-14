@@ -564,7 +564,9 @@ $('tipRaceSelect').addEventListener('change', showRaceSchedule);
 $('tipRaceSelect').addEventListener('change', loadSavedTip);
 $('tipRaceSelect').addEventListener('change', updateTipLocks);
 $('saveTipsButton').addEventListener('click', saveTips);
-
+setInterval(() => {
+  updateTipLocks();
+}, 30000);
 function showTipsPage() {
   const content = document.querySelector('.content');
   const tipsPage = $('tipsPage');
