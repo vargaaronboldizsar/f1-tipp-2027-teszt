@@ -367,6 +367,7 @@ async function loadSavedTip() {
 }
 
 
+
 async function saveTips() {
   if (!currentUser) {
     toast('Előbb jelentkezz be.');
@@ -382,6 +383,8 @@ async function saveTips() {
   }
 
   const raceId = option.value;
+  const isSprint = option.dataset.eventType === 'sprint';
+
   const poleField = $('tipPoleDriver');
   const timeField = $('tipPoleTime');
   const winnerField = $('tipWinnerDriver');
@@ -434,6 +437,19 @@ async function saveTips() {
       winnerDriver,
       updatedAt: serverTimestamp()
     });
+
+    $('tipsStatus').textContent = isSprint
+      ? 'Sprinttippek sikeresen elmentve!'
+      : 'GP-tippek sikeresen elmentve!';
+  } catch (error) {
+    console.error('Tippmentési hiba:', error);
+    $('tipsStatus').textContent =
+      'Mentési hiba: ' + error.message;
+  } finally {
+    $('saveTipsButton').disabled = false;
+  }
+}
+
 
     $('tipsStatus').textContent =
       'Tippek sikeresen elmentve!';
