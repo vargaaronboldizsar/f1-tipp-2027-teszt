@@ -90,8 +90,8 @@ button {
   text-align:center;
 }
 .nav button.active,.nav button:hover {
-  background:linear-gradient(90deg,#e10600,#6f0713);
-  border-color:#8b0713;
+  background:linear-gradient(90deg,var(--accent),#071018);
+  border-color:var(--accent);
   color:white;
 }
 .nav .divider {
@@ -250,7 +250,8 @@ button {
   background:var(--red);
 }
 .primary:hover {
-  background:#bd0016;
+  background:var(--accent);
+  filter:brightness(.85);
 }
 .secondary {
   background:#071018d9;
