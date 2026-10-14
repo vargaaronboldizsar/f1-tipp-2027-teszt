@@ -748,23 +748,28 @@ $('joinGroupButton')?.addEventListener('click', async () => {
     if (found.empty) { $('groupsStatus').textContent = 'Nem található ilyen meghívókód. Ellenőrizd a kódot.'; return; }
     const groupDoc = found.docs[0];
     const memberRef = doc(db, 'groups', groupDoc.id, 'members', currentUser.uid);
-    const existing = await getDoc(memberRef);
-    if (!existing.exists()) {
-      await setDoc(memberRef, {
-        uid: currentUser.uid,
-        username: $('username')?.value?.trim() || currentUser.displayName || 'Versenyző',
-        role: 'member',
-        joinedAt: serverTimestamp()
-      });
-    }
-    $('joinGroupCode').value = '';
-    $('groupsStatus').textContent = `Csatlakoztál ehhez: ${groupDoc.data().name || 'csoport'}`;
-    await loadMyGroups();
-  } catch (error) {
-    console.error('Csoporthoz csatlakozási hiba:', error);
-    $('groupsStatus').textContent = 'Nem sikerült csatlakozni. Ellenőrizd a Firestore Rules szabályokat.';
-  } finally { button.disabled = false; }
+    
+const existing = await getDoc(memberRef);
+
+if (existing.exists()) {
+  $('groupsStatus').textContent =
+    `Már tagja vagy ennek a csoportnak: ${groupDoc.data().name || 'csoport'}`;
+  return;
+}
+
+await setDoc(memberRef, {
+  uid: currentUser.uid,
+  username: $('username')?.value?.trim() || currentUser.displayName || 'Versenyző',
+  role: 'member',
+  joinedAt: serverTimestamp()
 });
+
+$('joinGroupCode').value = '';
+$('groupsStatus').textContent =
+  `Sikeresen csatlakoztál ehhez a csoporthoz: ${groupDoc.data().name || 'csoport'}`;
+
+await loadMyGroups();
+
 
 
 async function loadTipData() {
