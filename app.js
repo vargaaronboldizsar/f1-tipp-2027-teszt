@@ -5,6 +5,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.5.0/firebas
 import { getAuth, GoogleAuthProvider, signInWithPopup, setPersistence, browserLocalPersistence, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js';
 
+
 const firebaseConfig = {
   apiKey: "AIzaSyC-QBlvnLLWjajTbu02zINRYT-b-mnKH-I",
   authDomain: "f1-tipp-2027-teszt.firebaseapp.com",
