@@ -491,6 +491,66 @@ document.querySelectorAll('[data-nav]').forEach(button => {
 });
 
 
+async function loadTipData() {
+  const raceSelect = $('tipRaceSelect');
+  const poleSelect = $('tipPoleDriver');
+  const winnerSelect = $('tipWinnerDriver');
+
+  if (!raceSelect || !poleSelect || !winnerSelect) {
+    console.error('Hiányzó tippjáték mező az index.html fájlban.');
+    return;
+  }
+
+  raceSelect.innerHTML = '<option value="">Futam kiválasztása...</option>';
+  poleSelect.innerHTML = '<option value="">Pilóta kiválasztása...</option>';
+  winnerSelect.innerHTML = '<option value="">Pilóta kiválasztása...</option>';
+
+  $('tipRaceInfo').textContent = 'Futamok és pilóták betöltése…';
+
+  try {
+    const [racesResponse, driversResponse] = await Promise.all([
+      fetch(`${API_BASE}/2026/races/?limit=100`),
+      fetch(`${API_BASE}/2026/drivers/?limit=100`)
+    ]);
+
+    if (!racesResponse.ok || !driversResponse.ok) {
+      throw new Error('Az F1 API nem adott vissza sikeres választ.');
+    }
+
+    const racesData = await racesResponse.json();
+    const driversData = await driversResponse.json();
+
+    const races = racesData.MRData?.RaceTable?.Races || [];
+    const drivers = driversData.MRData?.DriverTable?.Drivers || [];
+
+    races.forEach(race => {
+      const option = document.createElement('option');
+      option.value = String(race.round);
+      option.textContent = `${race.round}. futam – ${race.raceName}`;
+      raceSelect.appendChild(option);
+    });
+
+    drivers.forEach(driver => {
+      const name = `${driver.givenName} ${driver.familyName}`;
+
+      [poleSelect, winnerSelect].forEach(select => {
+        const option = document.createElement('option');
+        option.value = driver.driverId;
+        option.textContent = name;
+        select.appendChild(option);
+      });
+    });
+
+    $('tipRaceInfo').textContent =
+      `${races.length} futam és ${drivers.length} pilóta betöltve.`;
+  } catch (error) {
+    console.error('Tippadatok betöltési hiba:', error);
+    $('tipRaceInfo').textContent =
+      'Nem sikerült betölteni az adatokat. Részletek a Console-ban.';
+  }
+}
+
+
 function goTips() {
   if (!currentUser) {
     $('loginOverlay').classList.remove('hidden');
