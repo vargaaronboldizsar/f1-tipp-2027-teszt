@@ -22,27 +22,64 @@ function toast(message) { const t = $('toast'); t.textContent = message; t.class
 // 2. Profilbeállítások mentése, Google-bejelentkezés és munkamenet kezelése
 // -----------------------------------------------------------------------------
 $('settingsCancel').addEventListener('click', () => $('settingsOverlay').classList.add('hidden'));
-$('saveProfileButton').addEventListener('click', async () => {
-  if (!currentUser) {
-    toast('Előbb jelentkezz be.');
-    return;
-  } const displayName = $('displayName').value.trim(), username = $('username').value.trim(); if (!displayName) {
-    $('profileStatus').textContent = 'Adj meg egy megjelenített nevet.';
-    return;
-  } if (username && !/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
-    $('profileStatus').textContent = 'A felhasználónév 3–20 karakter legyen: betűk, számok, aláhúzás.';
-    return;
-  } const data = { displayName, username, team: $('teamSelect').value, themeMode: $('standardTheme').checked ? 'standard' : 'team', favoriteDriver: $('driverSelect').value, email: currentUser.email || '', photoURL: currentUser.photoURL || '', updatedAt: serverTimestamp() }; try {
-    await setDoc(doc(db, 'users', currentUser.uid), data, { merge: true });
-    $('headerName').textContent = displayName;
-    $('headerTeam').textContent = data.team.toUpperCase() + ' SZURKOLÓ';
-    $('settingsOverlay').classList.add('hidden');
-    toast('Profilbeállítások elmentve a Firebase-be.');
+
+onAuthStateChanged(auth, async (user) => {
+  currentUser = user;
+
+  $('loginOpen').classList.toggle('hidden', !!user);
+  $('logoutButton').classList.toggle('hidden', !user);
+
+  $('headerName').textContent = user?.displayName || 'Vendég';
+  $('headerTeam').textContent = user ? 'F1 Tipp 2026' : 'Jelentkezz be';
+
+  const av = $('headerAvatar');
+
+  if (user?.photoURL) {
+    av.src = user.photoURL;
+    av.classList.remove('hidden');
+  } else {
+    av.removeAttribute('src');
+    av.classList.add('hidden');
   }
-  catch (e) {
-    $('profileStatus').textContent = 'Mentési hiba: ' + e.message;
+
+  if (!user) return;
+
+  try {
+    const snap = await getDoc(doc(db, 'users', user.uid));
+
+    if (snap.exists()) {
+      const d = snap.data();
+
+      $('username').value = d.username || '';
+      $('headerName').textContent = d.username || user.displayName || 'Versenyző';
+      $('headerTeam').textContent = d.team
+        ? d.team.toUpperCase() + ' SZURKOLÓ'
+        : 'F1 Tipp 2026';
+
+      $('teamSelect').value = d.team || 'ferrari';
+      $('driverSelect').value = d.favoriteDriver || 'leclerc';
+      $('standardTheme').checked = d.themeMode === 'standard';
+    } else {
+      await setDoc(doc(db, 'users', user.uid), {
+        username: '',
+        email: user.email || '',
+        photoURL: user.photoURL || '',
+        team: 'ferrari',
+        themeMode: 'team',
+        favoriteDriver: 'leclerc',
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+
+      $('teamSelect').value = 'ferrari';
+      $('driverSelect').value = 'leclerc';
+      $('standardTheme').checked = false;
+    }
+  } catch (e) {
+    console.warn('Profilbetöltési hiba', e);
+    toast('A bejelentkezés sikerült, de a profiladatok most nem tölthetők be.');
   }
 });
+
 $('loginOpen').addEventListener('click', () => { $('loginOverlay').classList.remove('hidden'); $('loginStatus').textContent = ''; });
 $('loginCancel').addEventListener('click', () => $('loginOverlay').classList.add('hidden'));
 $('loginButton').addEventListener('click', async () => {
