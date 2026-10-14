@@ -475,6 +475,61 @@ function showRaceSchedule() {
 }
 
 
+function updateTipLocks() {
+  const select = $('tipRaceSelect');
+  const option = select.options[select.selectedIndex];
+
+  const poleDriver = $('tipPoleDriver');
+  const poleTime = $('tipPoleTime');
+  const winnerDriver = $('tipWinnerDriver');
+
+  if (!option || !option.value) {
+    poleDriver.disabled = false;
+    poleTime.disabled = false;
+    winnerDriver.disabled = false;
+    return;
+  }
+
+  const isSprint = option.dataset.eventType === 'sprint';
+
+  function deadlinePassed(date, time) {
+    if (!date) return false;
+
+    const utcTime = time
+      ? (time.endsWith('Z') ? time : `${time}Z`)
+      : '00:00:00Z';
+
+    const deadline = new Date(`${date}T${utcTime}`);
+    return !Number.isNaN(deadline.getTime()) &&
+      Date.now() >= deadline.getTime();
+  }
+
+  const poleLocked = isSprint
+    ? deadlinePassed(
+        option.dataset.sprintQualifyingDate,
+        option.dataset.sprintQualifyingTime
+      )
+    : deadlinePassed(
+        option.dataset.qualifyingDate,
+        option.dataset.qualifyingTime
+      );
+
+  const winnerLocked = isSprint
+    ? deadlinePassed(
+        option.dataset.sprintDate,
+        option.dataset.sprintTime
+      )
+    : deadlinePassed(
+        option.dataset.raceDate,
+        option.dataset.raceTime
+      );
+
+  poleDriver.disabled = poleLocked;
+  poleTime.disabled = poleLocked;
+  winnerDriver.disabled = winnerLocked;
+}
+
+
 $('tipRaceSelect').addEventListener('change', showRaceSchedule);
 $('tipRaceSelect').addEventListener('change', loadSavedTip);
 $('saveTipsButton').addEventListener('click', saveTips);
