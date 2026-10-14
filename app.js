@@ -769,7 +769,14 @@ $('groupsStatus').textContent =
   `Sikeresen csatlakoztál ehhez a csoporthoz: ${groupDoc.data().name || 'csoport'}`;
 
 await loadMyGroups();
-
+  } catch (error) {
+    console.error('Csoporthoz csatlakozási hiba:', error);
+    $('groupsStatus').textContent =
+      'Nem sikerült csatlakozni. Ellenőrizd a Firestore Rules szabályokat.';
+  } finally {
+    button.disabled = false;
+  }
+});
 
 
 async function loadTipData() {
