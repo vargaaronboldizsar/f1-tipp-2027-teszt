@@ -331,6 +331,32 @@ loadRace();
 // -----------------------------------------------------------------------------
 // 4. Navigáció és jelenleg még külön fejlesztési lépést igénylő nézetek
 // -----------------------------------------------------------------------------
+
+function showTipsPage() {
+  const content = document.querySelector('.content');
+  const tipsPage = $('tipsPage');
+
+  if (!content || !tipsPage) {
+    toast('A tippoldal HTML-része hiányzik. Ellenőrizd az index.html módosítását.');
+    return;
+  }
+
+  [...content.children].forEach(el => {
+    el.classList.toggle('hidden', el !== tipsPage && !el.classList.contains('footer'));
+  });
+
+  tipsPage.classList.remove('hidden');
+}
+
+function showHomePage() {
+  const content = document.querySelector('.content');
+  if (!content) return;
+
+  [...content.children].forEach(el => {
+    el.classList.remove('hidden');
+  });
+}
+
 function openSection(key) {
   if (key === 'settings') {
     if (!currentUser) {
@@ -340,18 +366,56 @@ function openSection(key) {
     }
     $('settingsOverlay').classList.remove('hidden');
     return;
-  } const messages = { tips: 'Tippjáték: a Tippjáték menüpontot a meglévő tippjáték oldalra kell kötni.', ranking: 'Ranglista: a meglévő ranglista oldalra kell kötni.', calendar: 'Naptár: a szezon versenynaptárát a Firestore race dokumentumaiból lehet betölteni.', teams: 'Csapatok: csapatlista oldal.', drivers: 'Pilóták: pilótalista oldal.', stats: 'Statisztikák: szezonadatok oldal.', rules: 'Szabályok: pontozási és játékszabályok.', settings: 'Profil- és megjelenési beállítások.' }; if (key === 'home')
-    return; toast(messages[key] || 'Ez a nézet külön fejlesztési lépésben kapcsolható be.');
+  }
+
+  if (key === 'tips') {
+    goTips();
+    return;
+  }
+
+  if (key === 'home') {
+    showHomePage();
+    return;
+  }
+
+  showHomePage();
+
+  const messages = {
+    ranking: 'A ranglista bekötése következik.',
+    calendar: 'A naptár bekötése következik.',
+    teams: 'A csapatlista bekötése következik.',
+    drivers: 'A pilótalista bekötése következik.',
+    stats: 'A statisztikák bekötése következik.',
+    rules: 'A játékszabályok bekötése következik.'
+  };
+
+  toast(messages[key] || 'Ez a nézet később készül el.');
 }
-document.querySelectorAll('[data-nav]').forEach(b => b.addEventListener('click', () => { document.querySelectorAll('[data-nav]').forEach(x => x.classList.toggle('active', x === b)); openSection(b.dataset.nav); }));
+
+document.querySelectorAll('[data-nav]').forEach(button => {
+  button.addEventListener('click', () => {
+    document.querySelectorAll('[data-nav]').forEach(item => {
+      item.classList.toggle('active', item === button);
+    });
+
+    openSection(button.dataset.nav);
+  });
+});
+
 function goTips() {
   if (!currentUser) {
     $('loginOverlay').classList.remove('hidden');
-    $('loginStatus').textContent = 'A tippekhez először jelentkezz be.';
+    $('loginStatus').textContent = 'A tippek megadásához először jelentkezz be.';
     return;
-  } toast('A tippjáték oldal összekötése következő lépésben: a meglévő Firebase-adatokat nem módosítottuk.');
-}
-['heroTipButton', 'categoryTipButton'].forEach(id => $(id).addEventListener('click', goTips));
-$('raceDetailsButton').addEventListener('click', () => toast('A versenyhétvége hivatalos időpontjai a szezon adatainak bekötése után jelennek meg.'));
-document.querySelectorAll('[data-category]').forEach(b => b.addEventListener('click', goTips));
+  }
 
+  showTipsPage();
+}
+
+['heroTipButton', 'categoryTipButton'].forEach(id => {
+  $(id).addEventListener('click', goTips);
+});
+
+$('raceDetailsButton').addEventListener('click', () => {
+  toast('A versenyhétvége részleteinek bekötése később következik.');
+});
