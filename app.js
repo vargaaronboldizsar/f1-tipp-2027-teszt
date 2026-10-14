@@ -173,38 +173,7 @@ $('logoutButton').addEventListener('click', async () => {
     toast('Kijelentkezési hiba: ' + e.message);
   }
 });
-onAuthStateChanged(auth, async (user) => {
-  currentUser = user; $('loginOpen').classList.toggle('hidden', !!user); $('logoutButton').classList.toggle('hidden', !user); $('headerName').textContent = user?.displayName || 'Vendég'; $('headerTeam').textContent = user ? 'F1 Tipp 2026' : 'Jelentkezz be'; const av = $('headerAvatar'); if (user?.photoURL) {
-    av.src = user.photoURL;
-    av.classList.remove('hidden');
-  }
-  else {
-    av.removeAttribute('src');
-    av.classList.add('hidden');
-  } if (user) {
-    try {
-      const snap = await getDoc(doc(db, 'users', user.uid));
-      if (snap.exists()) {
-        const d = snap.data();
-        $$('headerName').textContent = d.username || d.displayName || user.displayName || 'Versenyző';
-        $('headerTeam').textContent = d.team ? d.team.toUpperCase() + ' SZURKOLÓ' : 'F1 Tipp 2026';
-        $('displayName').value = d.displayName || user.displayName || '';
-        $('username').value = d.username || '';
-        $('teamSelect').value = d.team || 'ferrari';
-        $('driverSelect').value = d.favoriteDriver || 'leclerc';
-        $('standardTheme').checked = d.themeMode === 'standard';
-        applyTeamTheme();
-      }
-      else {
-        await setDoc(doc(db, 'users', user.uid), { displayName: user.displayName || '', email: user.email || '', photoURL: user.photoURL || '', team: 'ferrari', themeMode: 'team', favoriteDriver: 'leclerc', updatedAt: serverTimestamp() }, { merge: true });
-      }
-    }
-    catch (e) {
-      console.warn('Profilbetöltési hiba', e);
-      toast('A bejelentkezés sikerült, de a profiladatok most nem tölthetők be.');
-    }
-  }
-});
+
 // 2026-os versenynaptár: Jolpica F1 API. A felhasználói banner/gumi adatok Firestore-ból felülírhatók.
 // -----------------------------------------------------------------------------
 // 3. Versenyadatok, pályaprofilok, időjárás és visszaszámláló
@@ -449,19 +418,6 @@ async function saveTips() {
     $('saveTipsButton').disabled = false;
   }
 }
-
-
-    $('tipsStatus').textContent =
-      'Tippek sikeresen elmentve!';
-  } catch (error) {
-    console.error('Tippmentési hiba:', error);
-    $('tipsStatus').textContent =
-      'Mentési hiba: ' + error.message;
-  } finally {
-    $('saveTipsButton').disabled = false;
-  }
-}
-
 
 function showRaceSchedule() {
   const select = $('tipRaceSelect');
