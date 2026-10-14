@@ -185,7 +185,7 @@ onAuthStateChanged(auth, async (user) => {
       const snap = await getDoc(doc(db, 'users', user.uid));
       if (snap.exists()) {
         const d = snap.data();
-        $('headerName').textContent = d.displayName || user.displayName || 'Versenyző';
+        $$('headerName').textContent = d.username || d.displayName || user.displayName || 'Versenyző';
         $('headerTeam').textContent = d.team ? d.team.toUpperCase() + ' SZURKOLÓ' : 'F1 Tipp 2026';
         $('displayName').value = d.displayName || user.displayName || '';
         $('username').value = d.username || '';
