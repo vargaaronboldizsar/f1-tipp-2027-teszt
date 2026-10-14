@@ -591,7 +591,7 @@ races.forEach(race => {
   const hasSprint = Boolean(race.Sprint || race.SprintQualifying);
   option.textContent =
     `${race.round}. futam – ${race.raceName}` +
-    (hasSprint ? ' · SPRINT HÉTVÉGE' : '');
+    (hasSprint ? ' · Sprint hétvége' : '');
 
   option.dataset.raceName = race.raceName || '';
   option.dataset.raceDate = race.date || '';
