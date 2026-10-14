@@ -23,6 +23,44 @@ function toast(message) { const t = $('toast'); t.textContent = message; t.class
 // -----------------------------------------------------------------------------
 $('settingsCancel').addEventListener('click', () => $('settingsOverlay').classList.add('hidden'));
 
+$('saveProfileButton').addEventListener('click', async () => {
+  if (!currentUser) {
+    toast('Előbb jelentkezz be.');
+    return;
+  }
+
+  const username = $('username').value.trim();
+
+  if (!/^[a-zA-Z0-9_]{3,24}$/.test(username)) {
+    $('profileStatus').textContent =
+      'A felhasználónév 3–24 karakter legyen: betűk, számok vagy aláhúzás.';
+    $('username').focus();
+    return;
+  }
+
+  const data = {
+    username,
+    team: $('teamSelect').value,
+    themeMode: $('standardTheme').checked ? 'standard' : 'team',
+    favoriteDriver: $('driverSelect').value,
+    email: currentUser.email || '',
+    photoURL: currentUser.photoURL || '',
+    updatedAt: serverTimestamp()
+  };
+
+  try {
+    await setDoc(doc(db, 'users', currentUser.uid), data, { merge: true });
+
+    $('headerName').textContent = username;
+    $('headerTeam').textContent = data.team.toUpperCase() + ' SZURKOLÓ';
+    $('settingsOverlay').classList.add('hidden');
+
+    toast('Profilbeállítások elmentve a Firebase-be.');
+  } catch (e) {
+    $('profileStatus').textContent = 'Mentési hiba: ' + e.message;
+  }
+});
+
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
 
