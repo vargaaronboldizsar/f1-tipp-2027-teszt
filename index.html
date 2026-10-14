@@ -627,6 +627,54 @@
        </div>
       </div>
      </section>
+
+
+<section id="tipsPage" class="tips-page hidden">
+  <div class="section-head">
+    <div>
+      <h2>Easy mód – Tippjáték</h2>
+      <p>Add meg a tippedet a következő futamra!</p>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:20px;padding:22px">
+    <label for="tipRaceSelect">Kiválasztott futam</label>
+    <select id="tipRaceSelect" style="width:100%;padding:12px;margin:10px 0;background:#071018;color:white;border:1px solid #2b3d4b;border-radius:8px">
+      <option value="">Futam kiválasztása...</option>
+    </select>
+    <p id="tipRaceInfo">Válassz ki egy futamot a tippek megadásához.</p>
+  </div>
+
+  <div class="panel" style="padding:22px;margin-bottom:16px">
+    <h3>01 – Pole pozíció</h3>
+    <p>Ki indul az első helyről az időmérő után?</p>
+    <select id="tipPoleDriver" style="width:100%;padding:12px;background:#071018;color:white;border:1px solid #2b3d4b;border-radius:8px">
+      <option value="">Pilóta kiválasztása...</option>
+    </select>
+  </div>
+
+  <div class="panel" style="padding:22px;margin-bottom:16px">
+    <h3>02 – Pole idő</h3>
+    <p>Milyen idővel szerzi meg a pole pozíciót?</p>
+    <input id="tipPoleTime" type="text" placeholder="Például: 1:32.456" style="width:100%;box-sizing:border-box;padding:12px;background:#071018;color:white;border:1px solid #2b3d4b;border-radius:8px">
+  </div>
+
+  <div class="panel" style="padding:22px;margin-bottom:20px">
+    <h3>03 – Futamgyőztes</h3>
+    <p>Ki nyeri a vasárnapi futamot?</p>
+    <select id="tipWinnerDriver" style="width:100%;padding:12px;background:#071018;color:white;border:1px solid #2b3d4b;border-radius:8px">
+      <option value="">Pilóta kiválasztása...</option>
+    </select>
+  </div>
+
+  <button class="primary" id="saveTipsButton">
+    Tippek mentése →
+  </button>
+  <p id="tipsStatus" role="status"></p>
+</section>
+
+
+     
      <footer class="footer">
       <span>
        APEX / F1 TIPP 2026
