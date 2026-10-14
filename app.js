@@ -334,60 +334,91 @@ loadRace();
 
 let tipRacesLoaded = false;
 
-async function loadTipData() {
-  if (tipRacesLoaded) return;
 
-  const raceSelect = $('tipRaceSelect');
-  const poleSelect = $('tipPoleDriver');
-  const winnerSelect = $('tipWinnerDriver');
+async function loadSavedTip() {
+  if (!currentUser) return;
 
-  if (!raceSelect || !poleSelect || !winnerSelect) {
-    toast('Hiányzik a tippjáték HTML-része az index.html fájlból.');
+  const raceId = $('tipRaceSelect').value;
+  if (!raceId) return;
+
+  $('tipsStatus').textContent = 'Korábbi tippek betöltése…';
+
+  try {
+    const tipRef = doc(db, 'users', currentUser.uid, 'tips', raceId);
+    const snap = await getDoc(tipRef);
+
+    if (snap.exists()) {
+      const tip = snap.data();
+      $('tipPoleDriver').value = tip.poleDriver || '';
+      $('tipPoleTime').value = tip.poleTime || '';
+      $('tipWinnerDriver').value = tip.winnerDriver || '';
+      $('tipsStatus').textContent = 'A korábban mentett tipped betöltve.';
+    } else {
+      $('tipPoleDriver').value = '';
+      $('tipPoleTime').value = '';
+      $('tipWinnerDriver').value = '';
+      $('tipsStatus').textContent = 'Ehhez a futamhoz még nincs mentett tipped.';
+    }
+  } catch (error) {
+    console.error(error);
+    $('tipsStatus').textContent = 'Nem sikerült betölteni a tippeket.';
+  }
+}
+
+async function saveTips() {
+  if (!currentUser) {
+    toast('Előbb jelentkezz be.');
     return;
   }
 
+  const raceId = $('tipRaceSelect').value;
+  const poleDriver = $('tipPoleDriver').value;
+  const poleTime = $('tipPoleTime').value.trim();
+  const winnerDriver = $('tipWinnerDriver').value;
+
+  if (!raceId || !poleDriver || !poleTime || !winnerDriver) {
+    $('tipsStatus').textContent = 'Tölts ki minden mezőt a mentéshez.';
+    return;
+  }
+
+  if (!/^\d+:\d{2}\.\d{3}$/.test(poleTime)) {
+    $('tipsStatus').textContent =
+      'A pole idő formátuma például: 1:32.456';
+    return;
+  }
+
+  const raceSelect = $('tipRaceSelect');
+  const raceName = raceSelect.options[raceSelect.selectedIndex].textContent;
+
+  $('saveTipsButton').disabled = true;
+  $('tipsStatus').textContent = 'Tippek mentése…';
+
   try {
-    const [raceResponse, driverResponse] = await Promise.all([
-      fetch(`${API_BASE}/2026/races/?limit=100`),
-      fetch(`${API_BASE}/2026/drivers/?limit=100`)
-    ]);
+    await setDoc(
+      doc(db, 'users', currentUser.uid, 'tips', raceId),
+      {
+        raceId,
+        raceName,
+        poleDriver,
+        poleTime,
+        winnerDriver,
+        updatedAt: serverTimestamp()
+      }
+    );
 
-    if (!raceResponse.ok || !driverResponse.ok) {
-      throw new Error('A versenyadatok nem tölthetők be.');
-    }
-
-    const raceData = await raceResponse.json();
-    const driverData = await driverResponse.json();
-
-    const races = raceData.MRData?.RaceTable?.Races || [];
-    const drivers = driverData.MRData?.DriverTable?.Drivers || [];
-
-    races.forEach(race => {
-      const option = document.createElement('option');
-      option.value = String(race.round);
-      option.textContent = `${race.round}. futam – ${race.raceName}`;
-      raceSelect.appendChild(option);
-    });
-
-    drivers.forEach(driver => {
-      const name = `${driver.givenName} ${driver.familyName}`;
-      [poleSelect, winnerSelect].forEach(select => {
-        const option = document.createElement('option');
-        option.value = driver.driverId;
-        option.textContent = name;
-        select.appendChild(option);
-      });
-    });
-
-    tipRacesLoaded = true;
-    $('tipRaceInfo').textContent =
-      `${races.length} futam és ${drivers.length} pilóta betöltve.`;
+    $('tipsStatus').textContent = 'Tippek sikeresen elmentve!';
   } catch (error) {
-    console.error('Tippadatok betöltési hiba:', error);
-    $('tipRaceInfo').textContent =
-      'Nem sikerült betölteni a futamokat és a pilótákat. Próbáld újra később.';
+    console.error(error);
+    $('tipsStatus').textContent =
+      'Mentési hiba: ' + error.message;
+  } finally {
+    $('saveTipsButton').disabled = false;
   }
 }
+
+$('tipRaceSelect').addEventListener('change', loadSavedTip);
+$('saveTipsButton').addEventListener('click', saveTips);
+
 
 function showTipsPage() {
   const content = document.querySelector('.content');
