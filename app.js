@@ -416,6 +416,66 @@ async function saveTips() {
   }
 }
 
+
+function showRaceSchedule() {
+  const select = $('tipRaceSelect');
+  const option = select.options[select.selectedIndex];
+
+  if (!option || !option.value) {
+    $('tipRaceInfo').textContent = 'Válassz egy futamot.';
+    return;
+  }
+
+  function formatSession(name, date, time) {
+    if (!date) return '';
+
+    const dateTime = time
+      ? new Date(`${date}T${time}`)
+      : new Date(`${date}T00:00:00Z`);
+
+    if (Number.isNaN(dateTime.getTime())) return '';
+
+    const formatted = new Intl.DateTimeFormat('hu-HU', {
+      timeZone: 'Europe/Budapest',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(dateTime);
+
+    return `${name}: ${formatted}`;
+  }
+
+  const sessions = [
+    formatSession(
+      'Sprint időmérő',
+      option.dataset.sprintQualifyingDate,
+      option.dataset.sprintQualifyingTime
+    ),
+    formatSession(
+      'Sprint',
+      option.dataset.sprintDate,
+      option.dataset.sprintTime
+    ),
+    formatSession(
+      'Normál időmérő',
+      option.dataset.qualifyingDate,
+      option.dataset.qualifyingTime
+    ),
+    formatSession(
+      'Nagydíj',
+      option.dataset.raceDate,
+      option.dataset.raceTime
+    )
+  ].filter(Boolean);
+
+  $('tipRaceInfo').textContent = sessions.length
+    ? sessions.join(' | ')
+    : 'Ehhez a futamhoz nem érkezett minden eseményhez időpont az API-ból.';
+}
+
+
+$('tipRaceSelect').addEventListener('change', showRaceSchedule);
 $('tipRaceSelect').addEventListener('change', loadSavedTip);
 $('saveTipsButton').addEventListener('click', saveTips);
 
