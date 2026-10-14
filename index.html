@@ -675,6 +675,17 @@
 
 
      
+     
+<section id="groupsPage" class="hidden" style="padding:8px 0 28px">
+  <div class="section-head"><div><h2>F1 Baráti csoportok</h2><p>Hozz létre saját versenyt, vagy csatlakozz egy meghívókóddal.</p></div></div>
+  <div class="cards" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));margin-bottom:20px">
+    <div class="panel" style="padding:22px"><h3>Új csoport létrehozása</h3><p>Te leszel a csoport adminisztrátora, és meghívókóddal hívhatod meg a többieket.</p><label for="newGroupName">Csoport neve</label><input id="newGroupName" maxlength="50" placeholder="pl. F1 Barátok Tippverseny" style="width:100%;box-sizing:border-box;padding:12px;margin:8px 0 14px;background:#071018;color:white;border:1px solid #2b3d4b;border-radius:8px"><button class="primary" id="createGroupButton">Csoport létrehozása</button></div>
+    <div class="panel" style="padding:22px"><h3>Csatlakozás kóddal</h3><p>Kérd el a csoport adminisztrátorától a meghívókódot.</p><label for="joinGroupCode">Meghívókód</label><input id="joinGroupCode" maxlength="12" placeholder="pl. APEX7K2P" style="width:100%;box-sizing:border-box;padding:12px;margin:8px 0 14px;background:#071018;color:white;border:1px solid #2b3d4b;border-radius:8px;text-transform:uppercase"><button class="secondary" id="joinGroupButton">Csatlakozás</button></div>
+  </div>
+  <p id="groupsStatus" role="status" style="margin:12px 0;color:var(--muted)">A csoportok betöltéséhez jelentkezz be.</p>
+  <div id="myGroupsList" class="cards" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))"></div>
+</section>
+
      <footer class="footer">
       <span>
        APEX / F1 TIPP 2026
@@ -814,4 +825,3 @@
   </script>
  </body>
 </html>
-
