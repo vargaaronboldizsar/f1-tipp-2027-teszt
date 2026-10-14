@@ -3,8 +3,16 @@
 // -----------------------------------------------------------------------------
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js';
 import { getAuth, GoogleAuthProvider, signInWithPopup, setPersistence, browserLocalPersistence, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js';
-import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js';
-
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  getDocs,
+  collection,
+  setDoc,
+  serverTimestamp
+} from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js';
+import { buildLeaderboard, getPlayerSeasonStats } from './scoring.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyC-QBlvnLLWjajTbu02zINRYT-b-mnKH-I",
@@ -732,3 +740,54 @@ function goTips() {
 $('raceDetailsButton').addEventListener('click', () => {
   toast('A versenyhétvége részleteinek bekötése később következik.');
 });
+
+
+async function loadLeaderboardData() {
+  const status = document.getElementById('leaderboardStatus');
+
+  if (status) {
+    status.textContent = 'A ranglista adatainak betöltése…';
+  }
+
+  try {
+    const [playersSnap, scoresSnap, bonusesSnap] = await Promise.all([
+      getDocs(collection(db, 'leaderboard')),
+      getDocs(collection(db, 'eventScores')),
+      getDocs(collection(db, 'bonusScores'))
+    ]);
+
+    const users = playersSnap.docs.map(d => ({
+      uid: d.id,
+      ...d.data()
+    }));
+
+    const eventScores = scoresSnap.docs.map(d => d.data());
+    const bonusScores = bonusesSnap.docs.map(d => d.data());
+
+    const leaderboard = buildLeaderboard(
+      users,
+      eventScores,
+      bonusScores,
+      2026
+    );
+
+    console.table(leaderboard);
+
+    if (status) {
+      status.textContent = leaderboard.length
+        ? `Ranglista betöltve: ${leaderboard.length} játékos.`
+        : 'Még nincsenek ranglistaadatok.';
+    }
+
+    return leaderboard;
+  } catch (error) {
+    console.error('Ranglista betöltési hiba:', error);
+
+    if (status) {
+      status.textContent =
+        'A ranglista nem tölthető be. Ellenőrizd a Firestore-jogosultságokat.';
+    }
+
+    return [];
+  }
+}
