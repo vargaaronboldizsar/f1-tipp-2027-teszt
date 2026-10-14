@@ -4,7 +4,16 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js';
 import { getAuth, GoogleAuthProvider, signInWithPopup, setPersistence, browserLocalPersistence, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js';
-const firebaseConfig = { apiKey: 'AIzaSyBb-ZNy-Nvsjir_ndT1dB_xX4ajZrbTd08', authDomain: 'f1-tipp-2027.firebaseapp.com', projectId: 'f1-tipp-2027', storageBucket: 'f1-tipp-2027.firebasestorage.app', messagingSenderId: '13870451311', appId: '1:13870451311:web:afdf86ca30b8aa01a79b9a' };
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC-QBlvnLLWjajTbu02zINRYT-b-mnKH-I",
+  authDomain: "f1-tipp-2027-teszt.firebaseapp.com",
+  projectId: "f1-tipp-2027-teszt",
+  storageBucket: "f1-tipp-2027-teszt.firebasestorage.app",
+  messagingSenderId: "933738803255",
+  appId: "1:933738803255:web:2435d9402387acee300fb2"
+};
+
 const app = initializeApp(firebaseConfig), auth = getAuth(app), db = getFirestore(app), provider = new GoogleAuthProvider();
 let currentUser = null;
 const $ = id => document.getElementById(id);
