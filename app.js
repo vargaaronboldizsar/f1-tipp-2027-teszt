@@ -365,59 +365,79 @@ async function loadSavedTip() {
   }
 }
 
+
 async function saveTips() {
   if (!currentUser) {
     toast('Előbb jelentkezz be.');
     return;
   }
 
-  const raceId = $('tipRaceSelect').value;
-  const poleDriver = $('tipPoleDriver').value;
-  const poleTime = $('tipPoleTime').value.trim();
-  const winnerDriver = $('tipWinnerDriver').value;
-
-  if (
-  !raceId ||
-  (!$('tipPoleDriver').disabled && !poleDriver) ||
-  (! $('tipPoleTime').disabled && !poleTime) ||
-  (! $('tipWinnerDriver').disabled && !winnerDriver)
-) {
-  $('tipsStatus').textContent =
-    'Tölts ki minden még nyitott tippmezőt a mentéshez.';
-  return;
-}
-
- if (
-  !$('tipPoleTime').disabled &&
-  !/^\d+:\d{2}\.\d{3}$/.test(poleTime)
-) {
-  $('tipsStatus').textContent =
-    'A pole idő formátuma például: 1:32.456';
-  return;
-}
-
   const raceSelect = $('tipRaceSelect');
-  const raceName = raceSelect.options[raceSelect.selectedIndex].textContent;
+  const option = raceSelect.options[raceSelect.selectedIndex];
+
+  if (!option || !option.value) {
+    $('tipsStatus').textContent = 'Válassz futamot.';
+    return;
+  }
+
+  const raceId = option.value;
+  const poleField = $('tipPoleDriver');
+  const timeField = $('tipPoleTime');
+  const winnerField = $('tipWinnerDriver');
+
+  const tipRef = doc(db, 'users', currentUser.uid, 'tips', raceId);
 
   $('saveTipsButton').disabled = true;
   $('tipsStatus').textContent = 'Tippek mentése…';
 
   try {
-    await setDoc(
-      doc(db, 'users', currentUser.uid, 'tips', raceId),
-      {
-        raceId,
-        raceName,
-        poleDriver,
-        poleTime,
-        winnerDriver,
-        updatedAt: serverTimestamp()
-      }
-    );
+    const snap = await getDoc(tipRef);
+    const oldTip = snap.exists() ? snap.data() : {};
 
-    $('tipsStatus').textContent = 'Tippek sikeresen elmentve!';
+    const poleDriver = poleField.disabled
+      ? (oldTip.poleDriver || '')
+      : poleField.value;
+
+    const poleTime = timeField.disabled
+      ? (oldTip.poleTime || '')
+      : timeField.value.trim();
+
+    const winnerDriver = winnerField.disabled
+      ? (oldTip.winnerDriver || '')
+      : winnerField.value;
+
+    if (
+      (!poleField.disabled && !poleDriver) ||
+      (!timeField.disabled && !poleTime) ||
+      (!winnerField.disabled && !winnerDriver)
+    ) {
+      $('tipsStatus').textContent =
+        'Tölts ki minden még nyitott tippmezőt.';
+      return;
+    }
+
+    if (
+      !timeField.disabled &&
+      !/^\d+:\d{2}\.\d{3}$/.test(poleTime)
+    ) {
+      $('tipsStatus').textContent =
+        'A pole idő formátuma például: 1:32.456';
+      return;
+    }
+
+    await setDoc(tipRef, {
+      raceId,
+      raceName: option.dataset.raceName || option.textContent,
+      poleDriver,
+      poleTime,
+      winnerDriver,
+      updatedAt: serverTimestamp()
+    });
+
+    $('tipsStatus').textContent =
+      'Tippek sikeresen elmentve!';
   } catch (error) {
-    console.error(error);
+    console.error('Tippmentési hiba:', error);
     $('tipsStatus').textContent =
       'Mentési hiba: ' + error.message;
   } finally {
