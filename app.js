@@ -332,6 +332,63 @@ loadRace();
 // 4. Navigáció és jelenleg még külön fejlesztési lépést igénylő nézetek
 // -----------------------------------------------------------------------------
 
+let tipRacesLoaded = false;
+
+async function loadTipData() {
+  if (tipRacesLoaded) return;
+
+  const raceSelect = $('tipRaceSelect');
+  const poleSelect = $('tipPoleDriver');
+  const winnerSelect = $('tipWinnerDriver');
+
+  if (!raceSelect || !poleSelect || !winnerSelect) {
+    toast('Hiányzik a tippjáték HTML-része az index.html fájlból.');
+    return;
+  }
+
+  try {
+    const [raceResponse, driverResponse] = await Promise.all([
+      fetch(`${API_BASE}/2026/races/?limit=100`),
+      fetch(`${API_BASE}/2026/drivers/?limit=100`)
+    ]);
+
+    if (!raceResponse.ok || !driverResponse.ok) {
+      throw new Error('A versenyadatok nem tölthetők be.');
+    }
+
+    const raceData = await raceResponse.json();
+    const driverData = await driverResponse.json();
+
+    const races = raceData.MRData?.RaceTable?.Races || [];
+    const drivers = driverData.MRData?.DriverTable?.Drivers || [];
+
+    races.forEach(race => {
+      const option = document.createElement('option');
+      option.value = String(race.round);
+      option.textContent = `${race.round}. futam – ${race.raceName}`;
+      raceSelect.appendChild(option);
+    });
+
+    drivers.forEach(driver => {
+      const name = `${driver.givenName} ${driver.familyName}`;
+      [poleSelect, winnerSelect].forEach(select => {
+        const option = document.createElement('option');
+        option.value = driver.driverId;
+        option.textContent = name;
+        select.appendChild(option);
+      });
+    });
+
+    tipRacesLoaded = true;
+    $('tipRaceInfo').textContent =
+      `${races.length} futam és ${drivers.length} pilóta betöltve.`;
+  } catch (error) {
+    console.error('Tippadatok betöltési hiba:', error);
+    $('tipRaceInfo').textContent =
+      'Nem sikerült betölteni a futamokat és a pilótákat. Próbáld újra később.';
+  }
+}
+
 function showTipsPage() {
   const content = document.querySelector('.content');
   const tipsPage = $('tipsPage');
@@ -402,15 +459,19 @@ document.querySelectorAll('[data-nav]').forEach(button => {
   });
 });
 
+
 function goTips() {
   if (!currentUser) {
     $('loginOverlay').classList.remove('hidden');
-    $('loginStatus').textContent = 'A tippek megadásához először jelentkezz be.';
+    $('loginStatus').textContent =
+      'A tippekhez először jelentkezz be.';
     return;
   }
 
   showTipsPage();
+  loadTipData();
 }
+
 
 ['heroTipButton', 'categoryTipButton'].forEach(id => {
   $(id).addEventListener('click', goTips);
