@@ -376,10 +376,16 @@ async function saveTips() {
   const poleTime = $('tipPoleTime').value.trim();
   const winnerDriver = $('tipWinnerDriver').value;
 
-  if (!raceId || !poleDriver || !poleTime || !winnerDriver) {
-    $('tipsStatus').textContent = 'Tölts ki minden mezőt a mentéshez.';
-    return;
-  }
+  if (
+  !raceId ||
+  (!$('tipPoleDriver').disabled && !poleDriver) ||
+  (! $('tipPoleTime').disabled && !poleTime) ||
+  (! $('tipWinnerDriver').disabled && !winnerDriver)
+) {
+  $('tipsStatus').textContent =
+    'Tölts ki minden még nyitott tippmezőt a mentéshez.';
+  return;
+}
 
   if (!/^\d+:\d{2}\.\d{3}$/.test(poleTime)) {
     $('tipsStatus').textContent =
@@ -532,8 +538,8 @@ function updateTipLocks() {
 
 $('tipRaceSelect').addEventListener('change', showRaceSchedule);
 $('tipRaceSelect').addEventListener('change', loadSavedTip);
+$('tipRaceSelect').addEventListener('change', updateTipLocks);
 $('saveTipsButton').addEventListener('click', saveTips);
-
 
 function showTipsPage() {
   const content = document.querySelector('.content');
