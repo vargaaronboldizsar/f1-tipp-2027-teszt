@@ -10,7 +10,10 @@ import {
   getDocs,
   collection,
   setDoc,
-  serverTimestamp
+  serverTimestamp,
+  writeBatch,
+  query,
+  where
 } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js';
 import { buildLeaderboard, getPlayerSeasonStats } from './scoring.js';
 
@@ -599,12 +602,16 @@ function openSection(key) {
     return;
   }
 
+  if (key === 'teams') {
+    showGroupsPage();
+    return;
+  }
+
   showHomePage();
 
   const messages = {
     ranking: 'A ranglista bekötése következik.',
     calendar: 'A naptár bekötése következik.',
-    teams: 'A csapatlista bekötése következik.',
     drivers: 'A pilótalista bekötése következik.',
     stats: 'A statisztikák bekötése következik.',
     rules: 'A játékszabályok bekötése következik.'
@@ -621,6 +628,142 @@ document.querySelectorAll('[data-nav]').forEach(button => {
 
     openSection(button.dataset.nav);
   });
+});
+
+
+// -----------------------------------------------------------------------------
+// Csoportok: létrehozás, meghívókódos csatlakozás, saját csoportok listázása
+// Kizárólag a teszt Firebase projektet használja.
+// -----------------------------------------------------------------------------
+function showGroupsPage() {
+  const content = document.querySelector('.content');
+  const page = $('groupsPage');
+  if (!content || !page) return toast('A csoportoldal HTML-része hiányzik.');
+  [...content.children].forEach(el => {
+    el.classList.toggle('hidden', el !== page && !el.classList.contains('footer'));
+  });
+  page.classList.remove('hidden');
+  loadMyGroups();
+}
+
+function makeInviteCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+function escapeGroupText(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+async function loadMyGroups() {
+  const status = $('groupsStatus');
+  const list = $('myGroupsList');
+  if (!status || !list) return;
+  if (!currentUser) {
+    status.textContent = 'A csoportok megtekintéséhez jelentkezz be Google-fiókkal.';
+    list.innerHTML = '';
+    return;
+  }
+  status.textContent = 'Csoportok betöltése…';
+  list.innerHTML = '';
+  try {
+    const groupsSnap = await getDocs(collection(db, 'groups'));
+    const groups = [];
+    for (const groupDoc of groupsSnap.docs) {
+      const memberSnap = await getDoc(doc(db, 'groups', groupDoc.id, 'members', currentUser.uid));
+      if (memberSnap.exists()) groups.push({ id: groupDoc.id, ...groupDoc.data(), member: memberSnap.data() });
+    }
+    if (!groups.length) {
+      status.textContent = 'Még nem vagy tagja egyetlen csoportnak sem. Hozz létre egyet, vagy csatlakozz kóddal.';
+      return;
+    }
+    status.textContent = `Csoportjaid: ${groups.length}`;
+    list.innerHTML = groups.map(g => `<div class="panel" style="padding:20px"><div class="panel-head">${escapeGroupText(g.name || 'Névtelen csoport')}</div><p style="color:var(--muted)">Szezon: ${escapeGroupText(g.season || 2026)} · Szerepkör: ${g.member.role === 'admin' ? 'Adminisztrátor' : 'Tag'}</p><p>Meghívókód</p><div style="font-size:24px;font-weight:800;letter-spacing:3px;margin:8px 0 14px">${escapeGroupText(g.inviteCode || 'Nincs kód')}</div><button class="secondary" data-copy-invite="${escapeGroupText(g.inviteCode || '')}">Kód másolása</button></div>`).join('');
+    list.querySelectorAll('[data-copy-invite]').forEach(button => button.addEventListener('click', async () => {
+      const code = button.dataset.copyInvite;
+      try { await navigator.clipboard.writeText(code); toast('Meghívókód másolva: ' + code); }
+      catch { toast('Meghívókód: ' + code); }
+    }));
+  } catch (error) {
+    console.error('Csoportbetöltési hiba:', error);
+    status.textContent = 'Nem sikerült betölteni a csoportokat. Ellenőrizd a Firestore biztonsági szabályokat.';
+  }
+}
+
+$('createGroupButton')?.addEventListener('click', async () => {
+  if (!currentUser) {
+    $('loginOverlay').classList.remove('hidden');
+    $('loginStatus').textContent = 'Csoport létrehozásához először jelentkezz be.';
+    return;
+  }
+  const name = $('newGroupName').value.trim();
+  if (name.length < 3) { $('groupsStatus').textContent = 'Adj meg legalább 3 karakter hosszú csoportnevet.'; return; }
+  const button = $('createGroupButton');
+  button.disabled = true;
+  $('groupsStatus').textContent = 'Csoport létrehozása…';
+  try {
+    const groupRef = doc(collection(db, 'groups'));
+    const inviteCode = makeInviteCode();
+    const batch = writeBatch(db);
+    batch.set(groupRef, {
+      name,
+      season: 2026,
+      status: 'active',
+      createdBy: currentUser.uid,
+      createdByName: $('username')?.value?.trim() || currentUser.displayName || 'Adminisztrátor',
+      inviteCode,
+      createdAt: serverTimestamp()
+    });
+    batch.set(doc(db, 'groups', groupRef.id, 'members', currentUser.uid), {
+      uid: currentUser.uid,
+      username: $('username')?.value?.trim() || currentUser.displayName || 'Versenyző',
+      role: 'admin',
+      joinedAt: serverTimestamp()
+    });
+    await batch.commit();
+    $('newGroupName').value = '';
+    $('groupsStatus').textContent = `Sikeres csoportlétrehozás. Meghívókód: ${inviteCode}`;
+    await loadMyGroups();
+  } catch (error) {
+    console.error('Csoportlétrehozási hiba:', error);
+    $('groupsStatus').textContent = 'Nem sikerült létrehozni a csoportot. Ha permission-denied hibát látsz, frissíteni kell a Firestore Rules szabályokat.';
+  } finally { button.disabled = false; }
+});
+
+$('joinGroupButton')?.addEventListener('click', async () => {
+  if (!currentUser) {
+    $('loginOverlay').classList.remove('hidden');
+    $('loginStatus').textContent = 'Csatlakozáshoz először jelentkezz be.';
+    return;
+  }
+  const code = $('joinGroupCode').value.trim().toUpperCase();
+  if (!code) { $('groupsStatus').textContent = 'Írd be a meghívókódot.'; return; }
+  const button = $('joinGroupButton');
+  button.disabled = true;
+  $('groupsStatus').textContent = 'Csoport keresése…';
+  try {
+    const found = await getDocs(query(collection(db, 'groups'), where('inviteCode', '==', code)));
+    if (found.empty) { $('groupsStatus').textContent = 'Nem található ilyen meghívókód. Ellenőrizd a kódot.'; return; }
+    const groupDoc = found.docs[0];
+    const memberRef = doc(db, 'groups', groupDoc.id, 'members', currentUser.uid);
+    const existing = await getDoc(memberRef);
+    if (!existing.exists()) {
+      await setDoc(memberRef, {
+        uid: currentUser.uid,
+        username: $('username')?.value?.trim() || currentUser.displayName || 'Versenyző',
+        role: 'member',
+        joinedAt: serverTimestamp()
+      });
+    }
+    $('joinGroupCode').value = '';
+    $('groupsStatus').textContent = `Csatlakoztál ehhez: ${groupDoc.data().name || 'csoport'}`;
+    await loadMyGroups();
+  } catch (error) {
+    console.error('Csoporthoz csatlakozási hiba:', error);
+    $('groupsStatus').textContent = 'Nem sikerült csatlakozni. Ellenőrizd a Firestore Rules szabályokat.';
+  } finally { button.disabled = false; }
 });
 
 
