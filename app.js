@@ -359,6 +359,7 @@ async function loadSavedTip() {
       $('tipWinnerDriver').value = '';
       $('tipsStatus').textContent = 'Ehhez a futamhoz még nincs mentett tipped.';
     }
+    updateTipLocks();
   } catch (error) {
     console.error(error);
     $('tipsStatus').textContent = 'Nem sikerült betölteni a tippeket.';
