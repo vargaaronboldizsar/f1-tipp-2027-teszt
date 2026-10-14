@@ -702,6 +702,7 @@ races.forEach(race => {
 
     $('tipRaceInfo').textContent =
       `${races.length} futam és ${drivers.length} pilóta betöltve.`;
+    updateTipLocks();
   } catch (error) {
     console.error('Tippadatok betöltési hiba:', error);
     $('tipRaceInfo').textContent =
