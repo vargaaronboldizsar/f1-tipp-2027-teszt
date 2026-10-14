@@ -17,6 +17,33 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig), auth = getAuth(app), db = getFirestore(app), provider = new GoogleAuthProvider();
 let currentUser = null;
 const $ = id => document.getElementById(id);
+const teamColors = {
+  ferrari:     '#e8002d',
+  mclaren:     '#ff8000',
+  mercedes:    '#00d7b8',
+  redbull:     '#3671c6',
+  williams:    '#1868db',
+  astonmartin: '#229971',
+  alpine:      '#0093cc',
+  racingbulls: '#6692ff',
+  audi:        '#e0002b',
+  haas:        '#ffffff'
+};
+
+function applyTeamTheme() {
+  const team = $('teamSelect').value;
+  const standard = $('standardTheme').checked;
+  const color = standard ? '#f20a24' : (teamColors[team] || '#e10600');
+
+  document.documentElement.style.setProperty('--red', color);
+  document.documentElement.style.setProperty('--accent', color);
+}
+
+$('teamSelect').addEventListener('change', applyTeamTheme);
+$('standardTheme').addEventListener('change', applyTeamTheme);
+
+applyTeamTheme();
+
 function toast(message) { const t = $('toast'); t.textContent = message; t.classList.remove('hidden'); clearTimeout(window.__toastTimer); window.__toastTimer = setTimeout(() => t.classList.add('hidden'), 4200); }
 // -----------------------------------------------------------------------------
 // 2. Profilbeállítások mentése, Google-bejelentkezés és munkamenet kezelése
@@ -97,6 +124,7 @@ onAuthStateChanged(auth, async (user) => {
       $('teamSelect').value = d.team || 'ferrari';
       $('driverSelect').value = d.favoriteDriver || 'leclerc';
       $('standardTheme').checked = d.themeMode === 'standard';
+      applyTeamTheme();
     } else {
       await setDoc(doc(db, 'users', user.uid), {
         username: '',
@@ -111,6 +139,7 @@ onAuthStateChanged(auth, async (user) => {
       $('teamSelect').value = 'ferrari';
       $('driverSelect').value = 'leclerc';
       $('standardTheme').checked = false;
+      applyTeamTheme();
     }
   } catch (e) {
     console.warn('Profilbetöltési hiba', e);
@@ -163,6 +192,7 @@ onAuthStateChanged(auth, async (user) => {
         $('teamSelect').value = d.team || 'ferrari';
         $('driverSelect').value = d.favoriteDriver || 'leclerc';
         $('standardTheme').checked = d.themeMode === 'standard';
+        applyTeamTheme();
       }
       else {
         await setDoc(doc(db, 'users', user.uid), { displayName: user.displayName || '', email: user.email || '', photoURL: user.photoURL || '', team: 'ferrari', themeMode: 'team', favoriteDriver: 'leclerc', updatedAt: serverTimestamp() }, { merge: true });
