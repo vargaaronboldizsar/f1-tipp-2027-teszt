@@ -726,11 +726,22 @@
   </section>
   <div class="profile-bottom-grid"><section class="panel profile-subpanel"><h2>Játékosadatok</h2><div class="profile-data-row"><span>Felhasználónév</span><strong id="profileUsername">—</strong></div><div class="profile-data-row"><span>Kedvenc csapat</span><strong id="profileTeam">—</strong></div><div class="profile-data-row"><span>Kedvenc pilóta</span><strong id="profileDriver">—</strong></div><p class="subtle">A profil neve, csapata és kedvenc pilótája a Beállításokban módosítható.</p></section><section class="panel profile-subpanel"><h2>Jelvényeim</h2><div class="profile-badge-list" id="profileBadges"><span class="profile-badge">🏁 Újonc</span><span class="profile-badge muted-badge">🏆 Első dobogó · később</span><span class="profile-badge muted-badge">🎯 Telitalálat · később</span></div><p class="subtle">A jelvények fokozatosan, ellenőrzött játékadatok alapján aktiválhatók.</p></section></div>
 </section>
-<section id="statsPage" class="score-page hidden">
-  <div class="section-head"><div><h2>Statisztikák</h2><p>Teljesítmény és ponteloszlás a betöltött eredmények alapján.</p></div><button class="secondary" id="refreshStatsButton">Frissítés ↻</button></div>
-  <p id="statsStatus" class="score-status">Statisztikák betöltése…</p>
-  <div id="statsCards" class="score-ranking"></div>
-  <div class="panel score-panel"><div class="panel-head">Pontok eseményenként</div><div id="pointsChart" class="points-chart"></div></div>
+<section id="statsPage" class="apex-stats-page hidden">
+  <div class="stats-hero">
+    <div class="stats-hero-copy"><span class="stats-eyebrow">APEX PERFORMANCE CENTER · 2026</span><h1>Szezonstatisztikák</h1><p>Valós pontok, futameredmények és játékos-összehasonlítások a Firestore-ból.</p><div class="stats-live-note"><i></i><span id="statsStatus">Statisztikák betöltése…</span></div></div>
+    <div class="stats-hero-art" aria-hidden="true"><span>APEX</span></div>
+    <button class="secondary stats-refresh" id="refreshStatsButton">↻ Frissítés</button>
+  </div>
+  <div class="stats-section-tabs"><span class="active">Áttekintés</span><span>Futamonként</span><span>Kategóriák</span><span>Játékosok</span><span>Összehasonlítás</span></div>
+  <div id="statsOverviewCards" class="stats-kpi-grid"></div>
+  <div class="stats-main-grid">
+    <section class="panel stats-panel stats-trend-panel"><div class="stats-panel-heading"><div><span class="stats-eyebrow">SZEZON ALAKULÁSA</span><h2>Pontok eseményenként</h2></div><span class="stats-legend"><i></i>Összes játékos</span></div><div id="pointsChart" class="stats-event-chart"></div><p class="stats-footnote">Az oszlopok az adatbázisban szereplő pontozott események összpontját mutatják.</p></section>
+    <section class="panel stats-panel"><div class="stats-panel-heading"><div><span class="stats-eyebrow">PONTOZÁSI PROFIL</span><h2>Pontforrások</h2></div></div><div id="statsCategories" class="stats-category-list"></div></section>
+  </div>
+  <div class="stats-lower-grid">
+    <section class="panel stats-panel"><div class="stats-panel-heading"><div><span class="stats-eyebrow">RANGLISTA</span><h2>Játékosok teljesítménye</h2></div></div><div id="statsCards" class="stats-player-list"></div></section>
+    <section class="panel stats-panel"><div class="stats-panel-heading"><div><span class="stats-eyebrow">KIEMELKEDŐ ESEMÉNYEK</span><h2>Legjobb futamok</h2></div></div><div id="statsBestEvents" class="stats-best-events"></div></section>
+  </div>
 </section>
 
      <footer class="footer">
