@@ -919,8 +919,14 @@ async function loadScoreboard() {
   if (rankingStatus) rankingStatus.textContent = 'Pontok betöltése a Firestore-ból…';
   if (statsStatus) statsStatus.textContent = 'Statisztikák betöltése a Firestore-ból…';
   try {
-    const usersSnap = await getDocs(collection(db, 'users'));
-    const users = usersSnap.docs.map(d => ({ uid: d.id, ...d.data() }));
+    // Tesztprojekt: ne olvassuk le a teljes /users gyűjteményt,
+    // mert az privát profiladatokat tartalmaz. A tesztfelhasználók UID-jeit
+    // explicit listából használjuk, és csak a scores alkollekciót kérjük le.
+    const users = [
+      { uid: 'A0c1CfsPutPLAoNSaiTStBFTFvs1', username: 'Geri' },
+      { uid: '3ZzPzpz5cOdpc61eAvTVax2zvQz2', username: 'Nándi' },
+      { uid: 'LadIkNLT9mdEo9d09mg2LWLcemf1', username: 'Áron' }
+    ];
     const scoreResults = await Promise.all(users.map(async user => {
       const snap = await getDocs(collection(db, 'users', user.uid, 'scores'));
       return snap.docs.map(d => ({ uid: user.uid, scoreId: d.id, ...d.data() }));
