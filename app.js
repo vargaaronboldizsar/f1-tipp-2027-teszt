@@ -675,15 +675,23 @@ async function loadMyGroups() {
   list.innerHTML = '';
 
   try {
-    const groupsSnap = await getDocs(collection(db, 'groups'));
+   
+console.log('Csoportbetöltés: lekérés indul');
+
+const groupsSnap = await getDocs(collection(db, 'groups'));
+
+console.log('Csoportbetöltés: sikeres', groupsSnap.size, 'csoport');
+
     const groups = [];
 
     for (const groupDoc of groupsSnap.docs) {
       const memberRef = doc(
         db, 'groups', groupDoc.id, 'members', currentUser.uid
       );
-
+      
+console.log('Tagság ellenőrzése:', groupDoc.id);
       const memberSnap = await getDoc(memberRef);
+      console.log('Tagság lekérdezve:', memberSnap.exists());
 
       if (memberSnap.exists()) {
         groups.push({
