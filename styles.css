@@ -932,3 +932,39 @@ button {
 .event-detail-note > span:last-child { color:var(--muted); font-size:12px; }
 @media(max-width:850px) { .score-ranking { grid-template-columns:1fr; } .event-detail-layout { grid-template-columns:1fr; } .score-table-heading { align-items:flex-start; } }
 @media(max-width:540px) { .season-chip { display:none; } .score-table-heading { padding:15px 14px; } .rank-card { min-height:0; } }
+
+/* Favorite-team themed leaderboard cards */
+.rank-card.team-card { isolation:isolate; }
+.team-card-glow { position:absolute; z-index:-1; inset:0; opacity:.95; pointer-events:none; }
+.team-card-glow::after { content:attr(data-team); position:absolute; right:-8px; top:12px; font-size:clamp(40px,5vw,76px); line-height:1; font-weight:1000; letter-spacing:-4px; opacity:.10; transform:skewX(-10deg); }
+.team-redbull { border-color:rgba(54,113,198,.55); }
+.team-redbull .team-card-glow { background:radial-gradient(ellipse at 88% 22%,rgba(220,0,45,.36),transparent 45%),linear-gradient(120deg,rgba(5,24,66,.98),rgba(7,13,24,.93)); }
+.team-redbull .team-card-glow::before { content:'RED BULL'; position:absolute; right:16px; bottom:34px; font-size:clamp(20px,2.4vw,34px); font-weight:1000; font-style:italic; color:#fff; opacity:.11; }
+.team-mercedes { border-color:rgba(0,210,190,.45); }
+.team-mercedes .team-card-glow { background:radial-gradient(ellipse at 88% 20%,rgba(0,210,190,.28),transparent 48%),linear-gradient(120deg,rgba(7,38,41,.98),rgba(5,13,19,.94)); }
+.team-mercedes .team-card-glow::before { content:'AMG'; position:absolute; right:18px; bottom:26px; font-size:clamp(36px,4vw,58px); font-weight:1000; font-style:italic; color:#b7fff5; opacity:.13; }
+.team-williams { border-color:rgba(24,104,219,.5); }
+.team-williams .team-card-glow { background:radial-gradient(ellipse at 88% 20%,rgba(24,104,219,.35),transparent 48%),linear-gradient(120deg,rgba(8,27,64,.98),rgba(5,13,19,.94)); }
+.team-williams .team-card-glow::before { content:'WILLIAMS'; position:absolute; right:16px; bottom:32px; font-size:clamp(22px,2.8vw,39px); font-weight:1000; font-style:italic; color:#b7d7ff; opacity:.13; }
+.team-ferrari { border-color:rgba(232,0,45,.48); }
+.team-ferrari .team-card-glow { background:radial-gradient(ellipse at 88% 20%,rgba(232,0,45,.32),transparent 48%),linear-gradient(120deg,rgba(56,8,19,.98),rgba(5,13,19,.94)); }
+.team-ferrari .team-card-glow::before { content:'SCUDERIA'; position:absolute; right:16px; bottom:32px; font-size:clamp(22px,2.8vw,39px); font-weight:1000; font-style:italic; color:#ffd0d8; opacity:.12; }
+.team-mclaren { border-color:rgba(255,128,0,.5); }
+.team-mclaren .team-card-glow { background:radial-gradient(ellipse at 88% 20%,rgba(255,128,0,.32),transparent 48%),linear-gradient(120deg,rgba(57,29,7,.98),rgba(5,13,19,.94)); }
+.team-mclaren .team-card-glow::before { content:'McLAREN'; position:absolute; right:16px; bottom:32px; font-size:clamp(22px,2.8vw,39px); font-weight:1000; font-style:italic; color:#ffe1bd; opacity:.13; }
+.team-astonmartin { border-color:rgba(34,153,113,.5); }
+.team-astonmartin .team-card-glow { background:radial-gradient(ellipse at 88% 20%,rgba(34,153,113,.3),transparent 48%),linear-gradient(120deg,rgba(7,43,35,.98),rgba(5,13,19,.94)); }
+.team-alpine { border-color:rgba(0,147,204,.5); }
+.team-alpine .team-card-glow { background:radial-gradient(ellipse at 88% 20%,rgba(0,147,204,.3),transparent 48%),linear-gradient(120deg,rgba(5,32,48,.98),rgba(5,13,19,.94)); }
+.team-racingbulls { border-color:rgba(102,146,255,.5); }
+.team-racingbulls .team-card-glow { background:radial-gradient(ellipse at 88% 20%,rgba(102,146,255,.3),transparent 48%),linear-gradient(120deg,rgba(13,25,58,.98),rgba(5,13,19,.94)); }
+.team-audi { border-color:rgba(224,0,43,.5); }
+.team-audi .team-card-glow { background:radial-gradient(ellipse at 88% 20%,rgba(224,0,43,.3),transparent 48%),linear-gradient(120deg,rgba(46,12,20,.98),rgba(5,13,19,.94)); }
+.team-haas { border-color:rgba(220,220,220,.35); }
+.team-haas .team-card-glow { background:radial-gradient(ellipse at 88% 20%,rgba(220,220,220,.2),transparent 48%),linear-gradient(120deg,rgba(35,38,42,.98),rgba(5,13,19,.94)); }
+.score-detail-toggle { width:38px; height:34px; justify-content:center; padding:0; border-radius:9px; border:1px solid rgba(120,150,175,.25); }
+.score-detail-toggle:hover { border-color:#3294ff; }
+.event-detail-note { position:relative; overflow:hidden; }
+.track-map-wrap { width:100%; min-height:140px; display:flex; align-items:center; justify-content:center; margin-bottom:8px; border-radius:9px; background:radial-gradient(ellipse at center,rgba(37,103,155,.18),transparent 70%); }
+.track-map { display:block; width:min(100%,300px); height:auto; filter:drop-shadow(0 0 12px rgba(46,140,255,.16)); }
+@media(max-width:850px) { .team-card-glow::before { font-size:30px; } }
