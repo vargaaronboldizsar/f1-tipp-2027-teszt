@@ -561,13 +561,13 @@ function showOnlyPage(pageId) {
   if (!content) return;
   [...content.children].forEach(el => {
     const isFooter = el.classList.contains('footer');
-    const isPage = ['tipsPage', 'groupsPage', 'rankingPage', 'statsPage'].includes(el.id);
+    const isPage = ['tipsPage', 'groupsPage', 'rankingPage', 'statsPage', 'calendarPage'].includes(el.id);
     if (isPage) el.classList.toggle('hidden', el.id !== pageId);
     else el.classList.toggle('hidden', pageId !== 'home' && !isFooter);
   });
   if (pageId === 'home') {
     [...content.children].forEach(el => {
-      if (!['tipsPage', 'groupsPage', 'rankingPage', 'statsPage'].includes(el.id)) el.classList.remove('hidden');
+      if (!['tipsPage', 'groupsPage', 'rankingPage', 'statsPage', 'calendarPage'].includes(el.id)) el.classList.remove('hidden');
     });
   }
 }
@@ -593,14 +593,39 @@ function openSection(key) {
   if (key === 'teams') { showGroupsPage(); return; }
   if (key === 'ranking') { showOnlyPage('rankingPage'); loadScoreboard(); return; }
   if (key === 'stats') { showOnlyPage('statsPage'); loadScoreboard(); return; }
+  if (key === 'calendar') { showOnlyPage('calendarPage'); initCalendar(); return; }
   showHomePage();
   const messages = {
-    calendar: 'A naptár bekötése következik.',
     drivers: 'A pilótalista bekötése következik.',
     rules: 'A játékszabályok bekötése következik.'
   };
   toast(messages[key] || 'Ez a nézet később készül el.');
 }
+
+
+// APEX naptár: lista, havi nézet és pályafelfedező
+let calRaces=[],calFilter='all',calView='list',calMonth=new Date(Date.UTC(2026,2,1)),calSelected=null,calLoaded=false;
+const calFlags={Australia:'🇦🇺',China:'🇨🇳',Japan:'🇯🇵',Bahrain:'🇧🇭','Saudi Arabia':'🇸🇦','United States':'🇺🇸',Canada:'🇨🇦',Monaco:'🇲🇨',Spain:'🇪🇸',Austria:'🇦🇹','United Kingdom':'🇬🇧',Hungary:'🇭🇺',Belgium:'🇧🇪',Netherlands:'🇳🇱',Italy:'🇮🇹',Azerbaijan:'🇦🇿',Singapore:'🇸🇬',Mexico:'🇲🇽',Brazil:'🇧🇷',Qatar:'🇶🇦','United Arab Emirates':'🇦🇪'};
+function ce(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function cf(r){return calFlags[r.Circuit?.Location?.country]||'🏁';}
+function cd(r,o={day:'numeric',month:'long',year:'numeric'}){return new Date(`${r.date}T${r.time||'12:00:00Z'}`).toLocaleDateString('hu-HU',{...o,timeZone:'UTC'});}
+function cs(r){return r._eventType==='sprint';}
+function cv(){return calRaces.filter(r=>calFilter==='all'||(calFilter==='sprint'?cs(r):!cs(r)));}
+function cn(r){return String(r.raceName||'Formula 1 futam').replace(/\s*Grand Prix\s*/i,' Nagydíj').replace(/\s+/g,' ').trim();}
+function cmeta(r){const p=profileFor(r);return `<span class="meta-chip">▦ ${ce(cd(r))}</span><span class="meta-chip">⌁ ${p.length?p.length.toFixed(3).replace('.',',')+' km':'–'}</span><span class="meta-chip">◉ ${p.laps||'–'} kör</span>`;}
+function cnext(){const r=calRaces.find(x=>new Date(`${x.date}T${x.time||'12:00:00Z'}`).getTime()>Date.now())||calRaces.at(-1);if(!r)return;$('calendarNext').innerHTML=`<div><span class="status-pill">KÖVETKEZŐ FUTAM</span><h2>${ce(cn(r))}</h2><p>${ce(r.Circuit?.circuitName||'')} · ${ce(r.Circuit?.Location?.locality||'')}, ${ce(r.Circuit?.Location?.country||'')}</p><div class="next-meta">${cmeta(r)}</div></div><div class="race-flag" style="width:72px;height:48px;font-size:36px">${cf(r)}</div>`;}
+function clist(){const rs=cv();$('calendarCount').textContent=`${calRaces.length} futamhétvége · 2026`;$('calendarListCount').textContent=`${rs.length} esemény`;$('calendarRaceList').innerHTML=rs.map(r=>{let sp=cs(r);return `<button class="calendar-race ${sp?'sprint':''}" data-cr="${ce(r.round)}"><span class="race-number">${ce(r.round)}.</span><span class="race-flag">${cf(r)}</span><span class="race-main"><strong>${ce(cn(r))}${sp?' – Sprint':''}</strong><small>${ce(r.Circuit?.circuitName||'')} · ${ce(r.Circuit?.Location?.locality||'')}</small></span><span class="race-date">${ce(cd(r,{day:'numeric',month:'short'}))}</span><span class="race-type ${sp?'sprint':''}">${sp?'SPRINT':'NAGYDÍJ'}</span><span class="race-open">Részletek ↗</span></button>`}).join('')||'<div class="loading-state">Nincs esemény ebben a szűrésben.</div>';$('calendarRaceList').querySelectorAll('[data-cr]').forEach(b=>b.onclick=()=>cselect(b.dataset.cr));}
+function cmonth(){let y=calMonth.getUTCFullYear(),m=calMonth.getUTCMonth(),off=(new Date(Date.UTC(y,m,1)).getUTCDay()+6)%7,days=new Date(Date.UTC(y,m+1,0)).getUTCDate(),prev=new Date(Date.UTC(y,m,0)).getUTCDate();$('calendarMonthTitle').textContent=calMonth.toLocaleDateString('hu-HU',{month:'long',year:'numeric',timeZone:'UTC'});let out=['H','K','SZE','CS','P','SZO','V'].map(n=>`<div class="month-day-name">${n}</div>`).join('');for(let i=0;i<42;i++){let d=i-off+1,inside=d>0&&d<=days,num=d<1?prev+d:d>days?d-days:d,key=`${y}-${String(m+1).padStart(2,'0')}-${String(num).padStart(2,'0')}`,ev=inside?cv().filter(r=>r.date===key):[];out+=`<div class="month-cell ${inside?'':'muted'}"><span class="day-num">${num}</span>${ev.map(r=>`<button class="month-event ${cs(r)?'sprint':''}" data-cm="${ce(r.round)}"><span>${cf(r)} ${ce(cn(r))}</span><span>${cs(r)?'Sprint':'Nagydíj'}</span></button>`).join('')}</div>`;}$('calendarMonthGrid').innerHTML=out;$('calendarMonthGrid').querySelectorAll('[data-cm]').forEach(b=>b.onclick=()=>cselect(b.dataset.cm));let ev=cv().filter(r=>{let d=new Date(r.date+'T12:00:00Z');return d.getUTCFullYear()===y&&d.getUTCMonth()===m});$('calendarMonthEvents').innerHTML=ev.map(r=>`<button class="calendar-race ${cs(r)?'sprint':''}" data-cr="${ce(r.round)}"><span class="race-number">${r.round}.</span><span class="race-flag">${cf(r)}</span><span class="race-main"><strong>${ce(cn(r))}${cs(r)?' – Sprint':''}</strong><small>${ce(r.Circuit?.circuitName||'')}</small></span><span class="race-date">${ce(cd(r))}</span><span class="race-type ${cs(r)?'sprint':''}">${cs(r)?'SPRINT':'NAGYDÍJ'}</span></button>`).join('')||'<div class="loading-state">Ebben a hónapban nincs futam.</div>';$('calendarMonthEvents').querySelectorAll('[data-cr]').forEach(b=>b.onclick=()=>cselect(b.dataset.cr));}
+function csvg(n){let paths=['M45 110 L58 62 L94 38 L145 46 L177 22 L225 35 L250 68 L236 102 L198 120 L173 145 L121 151 L86 132 Z','M35 105 L58 62 L105 45 L132 70 L175 28 L226 40 L245 80 L220 112 L176 100 L154 139 L101 143 L75 121 Z','M38 83 L68 43 L119 34 L157 57 L195 34 L238 57 L245 101 L206 133 L164 112 L123 145 L75 128 Z'];let d=paths[Math.abs(+n||0)%3];return `<svg class="track-svg" viewBox="0 0 280 180" role="img" aria-label="Sematikus pályarajz"><path d="${d}"/><path class="track-inner" d="${d}"/><circle cx="45" cy="110" r="5" fill="#f20a24"/><text x="58" y="105" fill="#72bfff" font-size="10">START</text></svg>`;}
+function ctrack(){let rs=cv();$('calendarTrackPicker').innerHTML=rs.map(r=>`<button class="track-pick ${String(r.round)===String(calSelected)?'active':''}" data-ct="${ce(r.round)}"><span class="race-flag">${cf(r)}</span><span><strong>${ce(cn(r))}</strong><small>${ce(r.Circuit?.Location?.locality||'')} · ${ce(cd(r,{day:'numeric',month:'short'}))}</small></span></button>`).join('');$('calendarTrackPicker').querySelectorAll('[data-ct]').forEach(b=>b.onclick=()=>{calSelected=b.dataset.ct;ctrack();});let r=rs.find(x=>String(x.round)===String(calSelected))||rs[0];if(!r){$('calendarTrackDetail').innerHTML='<div class="loading-state">Nincs pályaadat.</div>';return;}let p=profileFor(r);$('calendarTrackDetail').innerHTML=`<div class="track-detail-head"><div><h2>${cf(r)} ${ce(cn(r))}</h2><p>${ce(r.Circuit?.circuitName||'')} · ${ce(r.Circuit?.Location?.locality||'')}, ${ce(r.Circuit?.Location?.country||'')}</p></div><span class="track-number">${ce(r.round)}. futam</span></div><div class="track-map-wrap">${csvg(r.round)}<div class="track-stats"><div class="track-stat"><small>PÁLYAHOSSZ</small><strong>${p.length?p.length.toFixed(3).replace('.',',')+' km':'–'}</strong></div><div class="track-stat"><small>KÖRÖK</small><strong>${p.laps||'–'}</strong></div><div class="track-stat"><small>KANYAROK</small><strong>${p.corners||'–'}</strong></div><div class="track-stat"><small>VERSENYTÁV</small><strong>${p.length&&p.laps?(p.length*p.laps).toFixed(3).replace('.',',')+' km':'–'}</strong></div></div></div><div class="track-facts"><strong>Helyszín:</strong> ${ce(r.Circuit?.Location?.locality||'–')}, ${ce(r.Circuit?.Location?.country||'–')}<br><strong>Dátum:</strong> ${ce(cd(r))}<br><strong>Pályainformáció:</strong> ${ce(p.fact||'A pályaprofil később bővíthető.')}<br><small>A pályarajz sematikus illusztráció, nem hivatalos nyomvonal.</small></div>`;}
+function cselect(round){calSelected=String(round);clist();cmonth();ctrack();cset('track');}
+function cset(v){calView=v;document.querySelectorAll('[data-cal-view]').forEach(b=>b.classList.toggle('active',b.dataset.calView===v));$('calendarListView').classList.toggle('hidden',v!=='list');$('calendarMonthView').classList.toggle('hidden',v!=='month');$('calendarTrackView').classList.toggle('hidden',v!=='track');if(v==='list')clist();if(v==='month')cmonth();if(v==='track')ctrack();}
+async function initCalendar(){if(!calLoaded){try{let res=await fetch(`${API_BASE}/2026/races/?limit=100`);if(!res.ok)throw Error('HTTP '+res.status);let data=await res.json();const sourceRaces=data.MRData?.RaceTable?.Races||[];calRaces=sourceRaces.flatMap(r=>{const out=[{...r,_eventType:'gp'}];if(r.Sprint?.date)out.push({...r,date:r.Sprint.date,time:r.Sprint.time||'12:00:00Z',_eventType:'sprint'});return out;});if(!calRaces.length)throw Error('Üres versenynaptár');calLoaded=true;calSelected=String(calRaces[0].round);cnext();clist();cmonth();ctrack();}catch(e){console.error(e);$('calendarRaceList').innerHTML='<div class="loading-state">A versenynaptár most nem tölthető be. Próbáld újra a menüpont megnyitásával.</div>';return;}}cset(calView);}
+document.querySelectorAll('[data-cal-view]').forEach(b=>b.addEventListener('click',()=>cset(b.dataset.calView)));
+document.querySelectorAll('[data-cal-filter]').forEach(b=>b.addEventListener('click',()=>{calFilter=b.dataset.calFilter;document.querySelectorAll('[data-cal-filter]').forEach(x=>x.classList.toggle('active',x===b));clist();cmonth();ctrack();}));
+$('calendarPrevMonth')?.addEventListener('click',()=>{calMonth=new Date(Date.UTC(calMonth.getUTCFullYear(),calMonth.getUTCMonth()-1,1));cmonth();});
+$('calendarNextMonth')?.addEventListener('click',()=>{calMonth=new Date(Date.UTC(calMonth.getUTCFullYear(),calMonth.getUTCMonth()+1,1));cmonth();});
+
 
 document.querySelectorAll('[data-nav]').forEach(button => {
   button.addEventListener('click', () => {
