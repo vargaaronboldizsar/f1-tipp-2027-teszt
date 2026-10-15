@@ -82,6 +82,8 @@ $('saveProfileButton').addEventListener('click', async () => {
     team: $('teamSelect').value,
     themeMode: $('standardTheme').checked ? 'standard' : 'team',
     favoriteDriver: $('driverSelect').value,
+    helmetId: selectedHelmetId,
+    displayName: username,
     email: currentUser.email || '',
     photoURL: currentUser.photoURL || '',
     updatedAt: serverTimestamp()
@@ -92,6 +94,7 @@ $('saveProfileButton').addEventListener('click', async () => {
 
     $('headerName').textContent = username;
     $('headerTeam').textContent = data.team.toUpperCase() + ' SZURKOLÓ';
+    updateProfileIdentity(data);
     $('settingsOverlay').classList.add('hidden');
 
     toast('Profilbeállítások elmentve a Firebase-be.');
@@ -136,7 +139,9 @@ onAuthStateChanged(auth, async (user) => {
       $('teamSelect').value = d.team || 'ferrari';
       $('driverSelect').value = d.favoriteDriver || 'leclerc';
       $('standardTheme').checked = d.themeMode === 'standard';
+      selectedHelmetId = d.helmetId || 'schumacher-2000';
       applyTeamTheme();
+      updateProfileIdentity(d);
     } else {
       await setDoc(doc(db, 'users', user.uid), {
         username: '',
@@ -145,13 +150,16 @@ onAuthStateChanged(auth, async (user) => {
         team: 'ferrari',
         themeMode: 'team',
         favoriteDriver: 'leclerc',
+        helmetId: 'schumacher-2000',
         updatedAt: serverTimestamp()
       }, { merge: true });
 
       $('teamSelect').value = 'ferrari';
       $('driverSelect').value = 'leclerc';
       $('standardTheme').checked = false;
+      selectedHelmetId = 'schumacher-2000';
       applyTeamTheme();
+      updateProfileIdentity({username:'',team:'ferrari',favoriteDriver:'leclerc',helmetId:selectedHelmetId});
     }
   } catch (e) {
     console.warn('Profilbetöltési hiba', e);
@@ -556,18 +564,50 @@ $('saveTipsButton').addEventListener('click', saveTips);
 setInterval(() => {
   updateTipLocks();
 }, 30000);
+
+// APEX profil és választható, stilizált sisakavatárok
+const helmetCatalog = [
+ {id:'senna-1988',name:'Ayrton Senna',year:'1988',team:'McLaren',era:'classic',tag:'CLASSIC',style:'helmet-classic',desc:'A klasszikus sárga sisak ikonikus korszakának hangulata.'},
+ {id:'lauda-1976',name:'Niki Lauda',year:'1976',team:'Ferrari',era:'classic',tag:'CLASSIC',style:'helmet-ferrari',desc:'A hetvenes évek letisztult, klasszikus versenysisak-stílusa.'},
+ {id:'hunt-1976',name:'James Hunt',year:'1976',team:'McLaren',era:'classic',tag:'CLASSIC',style:'helmet-mclaren',desc:'Retró, nagy kontrasztú sisakdizájn klasszikus versenyhangulattal.'},
+ {id:'villeneuve-1979',name:'Gilles Villeneuve',year:'1979',team:'Ferrari',era:'classic',tag:'CLASSIC',style:'helmet-ferrari',desc:'Klasszikus piros-fehér versenysisak által inspirált avatár.'},
+ {id:'schumacher-2000',name:'Michael Schumacher',year:'2000',team:'Ferrari',era:'champion',tag:'BAJNOK',style:'helmet-ferrari',desc:'A Ferrari korszak és a 2000-es világbajnoki szezon által inspirált avatár.'},
+ {id:'alonso-2005',name:'Fernando Alonso',year:'2005',team:'Renault',era:'champion',tag:'BAJNOK',style:'helmet-mclaren',desc:'A 2005-ös bajnoki szezon kék-sárga hangulatát idéző avatár.'},
+ {id:'vettel-2010',name:'Sebastian Vettel',year:'2010',team:'Red Bull',era:'champion',tag:'BAJNOK',style:'helmet-redbull',desc:'A Red Bull első világbajnoki korszakát idéző dizájn.'},
+ {id:'hamilton-2020',name:'Lewis Hamilton',year:'2020',team:'Mercedes',era:'champion',tag:'BAJNOK',style:'helmet-mercedes',desc:'A Mercedes domináns korszakából inspirálódó türkiz-fekete sisak.'},
+ {id:'verstappen-2023',name:'Max Verstappen',year:'2023',team:'Red Bull',era:'modern',tag:'MODERN',style:'helmet-redbull',desc:'Modern, kék-piros versenyhangulat.'},
+ {id:'raikkonen-2007',name:'Kimi Räikkönen',year:'2007',team:'Ferrari',era:'modern',tag:'BAJNOK',style:'helmet-ferrari',desc:'A 2007-es bajnoki szezon ihlette piros-fehér avatár.'},
+ {id:'norris-2024',name:'Lando Norris',year:'2024',team:'McLaren',era:'current',tag:'AKTUÁLIS',style:'helmet-mclaren',desc:'Modern papaya narancsos színvilág.'},
+ {id:'leclerc-2024',name:'Charles Leclerc',year:'2024',team:'Ferrari',era:'current',tag:'AKTUÁLIS',style:'helmet-ferrari',desc:'Ferrari-piros, modern sisakstílus.'},
+ {id:'piastri-2024',name:'Oscar Piastri',year:'2024',team:'McLaren',era:'current',tag:'AKTUÁLIS',style:'helmet-mclaren',desc:'Letisztult, narancsos modern avatár.'},
+ {id:'russell-2024',name:'George Russell',year:'2024',team:'Mercedes',era:'current',tag:'AKTUÁLIS',style:'helmet-mercedes',desc:'Ezüstös-türkiz modern sisakstílus.'},
+ {id:'purple-apex',name:'Apex Nightfall',year:'APEX',team:'APEX Original',era:'modern',tag:'APEX ORIGINAL',style:'helmet-purple',desc:'Saját APEX-stílusú, lila-fekete sisakavatár.'},
+ {id:'williams-blue',name:'Classic Blue',year:'APEX',team:'Williams ihlette',era:'classic',tag:'APEX ORIGINAL',style:'helmet-williams',desc:'Klasszikus kék-fehér színvilágú saját avatár.'}
+];
+let selectedHelmetId='schumacher-2000', previewHelmetId='schumacher-2000', helmetFilter='all';
+const teamNames={ferrari:'Ferrari',mclaren:'McLaren',mercedes:'Mercedes',redbull:'Red Bull',williams:'Williams',astonmartin:'Aston Martin',alpine:'Alpine',racingbulls:'Racing Bulls',audi:'Audi',haas:'Haas'};
+const driverNames={leclerc:'Charles Leclerc',hamilton:'Lewis Hamilton',verstappen:'Max Verstappen',norris:'Lando Norris',piastri:'Oscar Piastri',russell:'George Russell',alonso:'Fernando Alonso',sainz:'Carlos Sainz'};
+function helmetFor(id){return helmetCatalog.find(h=>h.id===id)||helmetCatalog[4];}
+function updateProfileIdentity(d={}){const h=helmetFor(d.helmetId||selectedHelmetId);selectedHelmetId=d.helmetId||selectedHelmetId;const name=d.username||d.displayName||currentUser?.displayName||'Versenyző';$('profileDisplayName').textContent=name;$('profileMeta').textContent=`${teamNames[d.team]||'Ferrari'}-szurkoló · APEX F1 Tipp 2026`;$('profileUsername').textContent=d.username||'Nincs megadva';$('profileTeam').textContent=teamNames[d.team]||'Ferrari';$('profileDriver').textContent=driverNames[d.favoriteDriver]||'Charles Leclerc';$('profileAvatarLarge').className=`helmet-avatar ${h.style}`;$('profileAvatarLarge').innerHTML='<span class="helmet-visor"></span>'; $('profileBadgeRow').innerHTML='<span class="profile-badge">🏁 APEX GRID MEMBER</span>';renderHelmetGallery();}
+function renderHelmetGallery(){const q=($('helmetSearch')?.value||'').toLocaleLowerCase('hu'),f=$('helmetYearFilter')?.value||helmetFilter;const list=helmetCatalog.filter(h=>(f==='all'||h.era===f)&&(`${h.name} ${h.year} ${h.team}`.toLocaleLowerCase('hu').includes(q)));$('helmetGallery').innerHTML=list.map(h=>`<button class="helmet-card ${h.id===previewHelmetId?'selected':''}" data-helmet-id="${h.id}"><span class="helmet-art"><span class="helmet-avatar ${h.style}"><span class="helmet-visor"></span></span></span><span class="helmet-card-copy"><strong>${h.name}</strong><small>${h.year} · ${h.team}</small><span class="helmet-tag">${h.tag}</span></span></button>`).join('')||'<p class="subtle">Nincs találat a keresésre.</p>';document.querySelectorAll('[data-helmet-id]').forEach(b=>b.addEventListener('click',()=>selectHelmet(b.dataset.helmetId)));const h=helmetFor(previewHelmetId);$('helmetPreviewArt').className=`helmet-preview-art ${h.style}`;$('helmetPreviewArt').innerHTML=`<span class="helmet-avatar ${h.style}"><span class="helmet-visor"></span></span>`;$('helmetPreviewTag').textContent=h.tag;$('helmetPreviewName').textContent=`${h.name} · ${h.year}`;$('helmetPreviewMeta').textContent=`${h.team} · ${h.era==='champion'?'Világbajnoki szezon':h.era==='classic'?'Classic Legends':h.era==='current'?'Aktuális mezőny':'Modern Icons'}`;$('helmetPreviewDescription').textContent=h.desc;$('saveHelmetButton').textContent=h.id===selectedHelmetId?'✓ Ez a jelenlegi avatárod':'✓ Ezt az avatárt választom';}
+function selectHelmet(id){previewHelmetId=id;renderHelmetGallery();}
+document.querySelectorAll('[data-helmet-filter]').forEach(b=>b.addEventListener('click',()=>{helmetFilter=b.dataset.helmetFilter;document.querySelectorAll('[data-helmet-filter]').forEach(x=>x.classList.toggle('active',x===b));$('helmetYearFilter').value=helmetFilter;renderHelmetGallery();}));$('helmetSearch').addEventListener('input',renderHelmetGallery);$('helmetYearFilter').addEventListener('change',e=>{helmetFilter=e.target.value;document.querySelectorAll('[data-helmet-filter]').forEach(x=>x.classList.toggle('active',x.dataset.helmetFilter===helmetFilter));renderHelmetGallery();});
+$('saveHelmetButton').addEventListener('click',async()=>{if(!currentUser){$('helmetSaveStatus').textContent='A mentéshez jelentkezz be.';return;}selectedHelmetId=previewHelmetId;const b=$('saveHelmetButton');b.disabled=true;$('helmetSaveStatus').textContent='Mentés…';try{await setDoc(doc(db,'users',currentUser.uid),{helmetId:selectedHelmetId,updatedAt:serverTimestamp()},{merge:true});const h=helmetFor(selectedHelmetId);$('profileAvatarLarge').className=`helmet-avatar ${h.style}`;$('profileAvatarLarge').innerHTML='<span class="helmet-visor"></span>';const av=$('headerAvatar');av.src='data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="50" fill="#101820"/><path d="M20 52 Q16 18 50 12 Q84 18 80 52 L72 77 L28 77Z" fill="${({ 'helmet-ferrari':'#e10600','helmet-mclaren':'#ff8000','helmet-mercedes':'#00d7b8','helmet-redbull':'#3671c6','helmet-classic':'#f4d23c','helmet-williams':'#1765d1','helmet-purple':'#6940a5'}[h.style]||'#e10600')}"/><path d="M23 47 Q50 37 77 47 L72 62 Q50 70 28 62Z" fill="#111923" stroke="#b9c6d4" stroke-width="3"/></svg>`);av.classList.remove('hidden');$('helmetSaveStatus').textContent='Az avatár elmentve a profilodba.';renderHelmetGallery();toast('Avatár mentve.');}catch(e){$('helmetSaveStatus').textContent='Mentési hiba: '+e.message;}finally{b.disabled=false;}});
+$('profileEditButton').addEventListener('click',()=>{if(!currentUser)return;$('settingsOverlay').classList.remove('hidden');});
+async function loadProfileStats(){if(!currentUser)return;try{const snap=await getDoc(doc(db,'users',currentUser.uid));const d=snap.exists()?snap.data():{};updateProfileIdentity(d);const scoresSnap=await getDocs(collection(db,'users',currentUser.uid,'scores'));let total=0,hits=0,best=0; scoresSnap.forEach(x=>{const v=x.data();total+=Number(v.points||v.totalPoints||0);hits+=Number(v.hits||v.correctCount||0);best=Math.max(best,Number(v.points||v.totalPoints||0));});$('profilePoints').textContent=total||'—';$('profileHits').textContent=hits||'—';$('profileBest').textContent=best||'—';$('profileRank').textContent='—';}catch(e){console.info('Profilstatisztika nem elérhető',e);$('profilePoints').textContent='—';$('profileHits').textContent='—';$('profileBest').textContent='—';$('profileRank').textContent='—';}}
+
 function showOnlyPage(pageId) {
   const content = document.querySelector('.content');
   if (!content) return;
   [...content.children].forEach(el => {
     const isFooter = el.classList.contains('footer');
-    const isPage = ['tipsPage', 'groupsPage', 'rankingPage', 'statsPage', 'calendarPage'].includes(el.id);
+    const isPage = ['tipsPage', 'groupsPage', 'rankingPage', 'statsPage', 'calendarPage', 'profilePage'].includes(el.id);
     if (isPage) el.classList.toggle('hidden', el.id !== pageId);
     else el.classList.toggle('hidden', pageId !== 'home' && !isFooter);
   });
   if (pageId === 'home') {
     [...content.children].forEach(el => {
-      if (!['tipsPage', 'groupsPage', 'rankingPage', 'statsPage', 'calendarPage'].includes(el.id)) el.classList.remove('hidden');
+      if (!['tipsPage', 'groupsPage', 'rankingPage', 'statsPage', 'calendarPage', 'profilePage'].includes(el.id)) el.classList.remove('hidden');
     });
   }
 }
@@ -579,6 +619,7 @@ function showHomePage() {
   showOnlyPage('home');
 }
 function openSection(key) {
+  if (key === 'profile') { if (!currentUser) { $('loginOverlay').classList.remove('hidden'); $('loginStatus').textContent = 'A profilod megtekintéséhez jelentkezz be.'; return; } showOnlyPage('profilePage'); loadProfileStats(); return; }
   if (key === 'settings') {
     if (!currentUser) {
       $('loginOverlay').classList.remove('hidden');
