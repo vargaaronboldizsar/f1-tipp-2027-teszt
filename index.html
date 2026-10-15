@@ -629,6 +629,16 @@
      </section>
 
 
+
+<section id="calendarPage" class="calendar-page hidden">
+  <div class="calendar-heading"><div><div class="eyebrow">APEX / SZEZON ADATOK</div><h1>2026-os szezon naptár</h1><p>Futamok, sprint hétvégék és pályaadatok egy helyen.</p></div><div class="calendar-count" id="calendarCount">Naptár betöltése…</div></div>
+  <div class="calendar-toolbar"><div class="calendar-filters" role="group" aria-label="Események szűrése"><button class="cal-filter active" data-cal-filter="all">Összes futam</button><button class="cal-filter" data-cal-filter="gp">Nagydíjak</button><button class="cal-filter" data-cal-filter="sprint">Sprintek</button></div><div class="calendar-views" role="group" aria-label="Nézet választása"><button class="cal-view active" data-cal-view="list">☷ Lista nézet</button><button class="cal-view" data-cal-view="month">▦ Naptár nézet</button><button class="cal-view" data-cal-view="track">⌁ Pálya nézet</button></div></div>
+  <div class="calendar-next panel" id="calendarNext"><div><span class="status-pill">KÖVETKEZŐ FUTAM</span><h2>Futamadatok betöltése…</h2><p>Az aktuális szezon eseményei töltődnek.</p></div></div>
+  <section class="calendar-view-panel" id="calendarListView"><div class="calendar-section-title"><div><h2>Szezon futamai</h2><p>Válassz egy eseményt a részletes pályaadatokhoz.</p></div><span class="subtle" id="calendarListCount"></span></div><div class="calendar-race-list" id="calendarRaceList"><div class="loading-state">Versenynaptár betöltése…</div></div></section>
+  <section class="calendar-view-panel hidden" id="calendarMonthView"><div class="calendar-section-title month-heading"><button class="secondary" id="calendarPrevMonth" aria-label="Előző hónap">‹</button><div><h2 id="calendarMonthTitle">Március 2026</h2><p>Válassz egy eseményt a napok közül.</p></div><button class="secondary" id="calendarNextMonth" aria-label="Következő hónap">›</button></div><div class="month-legend"><span><i class="legend-dot gp"></i>Nagydíj</span><span><i class="legend-dot sprint"></i>Sprint</span></div><div class="month-grid" id="calendarMonthGrid"></div><div class="month-events" id="calendarMonthEvents"></div></section>
+  <section class="calendar-view-panel hidden" id="calendarTrackView"><div class="calendar-section-title"><div><h2>Pálya felfedező</h2><p>Válassz pályát, és nézd meg a szezonhoz tartozó alapadatokat.</p></div></div><div class="track-layout"><div class="track-picker" id="calendarTrackPicker"></div><article class="track-detail panel" id="calendarTrackDetail"><div class="loading-state">Pályaadatok betöltése…</div></article></div></section>
+</section>
+
 <section id="tipsPage" class="tips-page hidden">
   <div class="section-head">
     <div>
@@ -845,4 +855,3 @@
   </script>
  </body>
 </html>
-
