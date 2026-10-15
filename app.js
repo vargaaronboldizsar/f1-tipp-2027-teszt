@@ -966,12 +966,33 @@ async function loadScoreboard() {
         </article>`).join('');
     }
     const sortedScores = [...scores].sort((x, y) => eventSortValue(x) - eventSortValue(y) || nameByUid.get(x.uid).localeCompare(nameByUid.get(y.uid), 'hu'));
+    // Alapnézetben eseményenként csak egy sor látszik; a részletes játékos-pontozás lenyitható.
+    const eventGroups = new Map();
+    sortedScores.forEach(s => {
+      const id = String(s.raceId || s.scoreId);
+      if (!eventGroups.has(id)) eventGroups.set(id, { id, name: s.raceName || ('Futam ' + id), sprint: s.eventType === 'sprint' || id.endsWith('-sprint'), scores: [] });
+      eventGroups.get(id).scores.push(s);
+    });
+    const players = [...users].sort((a, b) => a.username.localeCompare(b.username, 'hu'));
+    const eventFlag = name => { const n = String(name).toLowerCase(); const flags = [['australian','🇦🇺'],['chinese','🇨🇳'],['japanese','🇯🇵'],['bahrain','🇧🇭'],['saudi','🇸🇦'],['miami','🇺🇸'],['canadian','🇨🇦'],['monaco','🇲🇨'],['spanish','🇪🇸'],['barcelona','🇪🇸'],['austrian','🇦🇹'],['british','🇬🇧'],['belgian','🇧🇪'],['hungarian','🇭🇺'],['dutch','🇳🇱'],['italian','🇮🇹'],['azerbaijan','🇦🇿'],['singapore','🇸🇬'],['united states','🇺🇸'],['mexico','🇲🇽'],['brazil','🇧🇷'],['las vegas','🇺🇸'],['qatar','🇶🇦'],['abu dhabi','🇦🇪']]; return (flags.find(([key]) => n.includes(key)) || [null, '🏁'])[1]; };
     if ($('eventScoresBody')) {
-      $('eventScoresBody').innerHTML = sortedScores.length ? sortedScores.map(s => `
-        <tr><td>${safeText(s.raceName || ('Futam ' + s.raceId))}${s.eventType === 'sprint' || String(s.raceId || '').endsWith('-sprint') ? ' <span class="score-pill">SPRINT</span>' : ''}</td>
-        <td>${safeText(nameByUid.get(s.uid))}</td><td>${scoreNum(s, 'polePoints')}</td><td>${scoreNum(s, 'timePoints')}</td>
-        <td>${scoreNum(s, 'winnerPoints')}</td><td>${scoreNum(s, 'bonus')}</td><td><b>${scoreNum(s, 'total')}</b></td></tr>`).join('')
-        : '<tr><td colspan="7">Nincs megjeleníthető pontozás.</td></tr>';
+      $('eventScoresBody').innerHTML = eventGroups.size ? [...eventGroups.values()].map((event, index) => {
+        const eventTotal = uid => event.scores.filter(s => s.uid === uid).reduce((sum, s) => sum + scoreNum(s, 'total'), 0);
+        const details = [...event.scores].sort((a, b) => nameByUid.get(a.uid).localeCompare(nameByUid.get(b.uid), 'hu')).map(s => `
+          <tr><td>${safeText(nameByUid.get(s.uid))}</td><td>${scoreNum(s, 'polePoints')}</td><td>${scoreNum(s, 'timePoints')}</td><td>${scoreNum(s, 'winnerPoints')}</td><td>${scoreNum(s, 'bonus')}</td><td><b>${scoreNum(s, 'total')}</b></td></tr>`).join('');
+        return `<tr class="event-summary-row"><td class="event-number">${index + 1}</td><td class="event-name-cell"><span class="event-flag">${eventFlag(event.name)}</span><span>${safeText(event.name.replace(/^\d+\s*[|–-]?\s*/, '').replace(/\s*[–-]\s*Sprint$/i, ''))}</span></td><td><span class="event-type ${event.sprint ? 'is-sprint' : 'is-gp'}"><i></i>${event.sprint ? 'Sprint' : 'Nagydíj'}</span></td>
+          ${players.map(p => `<td class="event-player-points"><b>${eventTotal(p.uid)}</b></td>`).join('')}
+          <td class="event-details-cell"><button type="button" class="score-detail-toggle" data-score-detail="${safeText(event.id)}" aria-expanded="false" aria-label="${safeText(event.name)} részletei"><span>Részletek</span><span class="detail-chevron">⌄</span></button></td></tr>
+          <tr class="event-detail-row hidden" id="score-detail-${safeText(event.id)}"><td colspan="${players.length + 4}"><div class="event-detail-layout"><div class="event-detail-score"><h3>${safeText(event.name)}</h3><p>Részletes pontozás</p><table class="score-detail-table"><thead><tr><th>Játékos</th><th>Pole</th><th>Idő</th><th>Győztes</th><th>Bónusz</th><th>Összesen</th></tr></thead><tbody>${details || '<tr><td colspan="6">Nincs pontadat.</td></tr>'}</tbody></table></div><div class="event-detail-note"><span class="event-flag large">${eventFlag(event.name)}</span><strong>${event.sprint ? 'Sprint hétvége' : 'Nagydíj'}</strong><span>${event.sprint ? 'Sprint időmérő és sprintfutam' : 'Időmérő és nagydíj'}</span></div></div></td></tr>`;
+      }).join('') : '<tr><td colspan="5">Nincs megjeleníthető pontozás.</td></tr>';
+      $('eventScoresBody').querySelectorAll('[data-score-detail]').forEach(button => button.addEventListener('click', () => {
+        const row = document.getElementById('score-detail-' + button.dataset.scoreDetail);
+        if (!row) return;
+        const opening = row.classList.contains('hidden');
+        row.classList.toggle('hidden', !opening);
+        button.textContent = opening ? 'Bezárás −' : 'Részletek +';
+        button.setAttribute('aria-expanded', String(opening));
+      }));
     }
     if (statsStatus) statsStatus.textContent = `Összesen ${scores.reduce((n, s) => n + scoreNum(s, 'total'), 0)} pont · ${scores.length} pontozott esemény`;
     if ($('statsCards')) {
