@@ -1072,28 +1072,51 @@ async function loadScoreboard() {
         button.title = opening ? 'Részletek bezárása' : 'Részletek megnyitása';
       }));
     }
-    if (statsStatus) statsStatus.textContent = `Összesen ${scores.reduce((n, s) => n + scoreNum(s, 'total'), 0)} pont · ${scores.length} pontozott esemény`;
+    const totalPoints = scores.reduce((n, s) => n + scoreNum(s, 'total'), 0);
+    const eventMap = new Map();
+    scores.forEach(s => {
+      const id = String(s.raceId || s.scoreId);
+      if (!eventMap.has(id)) eventMap.set(id, { id, name: s.raceName || `Futam ${id}`, points: 0, sprint: s.eventType === 'sprint' || id.endsWith('-sprint'), scores: [] });
+      const ev = eventMap.get(id); ev.points += scoreNum(s, 'total'); ev.scores.push(s);
+    });
+    const events = [...eventMap.values()].sort((a,b) => eventSortValue({raceId:a.id,eventType:a.sprint?'sprint':'gp'}) - eventSortValue({raceId:b.id,eventType:b.sprint?'sprint':'gp'}));
+    const maxEvent = Math.max(1, ...events.map(e => e.points));
+    const componentTotals = [
+      { key:'polePoints', label:'Pole pozíció', color:'red' },
+      { key:'timePoints', label:'Időtipp', color:'blue' },
+      { key:'winnerPoints', label:'Futamgyőztes', color:'gold' },
+      { key:'bonus', label:'Bónuszpontok', color:'green' }
+    ].map(c => ({...c, points:scores.reduce((n,s)=>n+scoreNum(s,c.key),0)}));
+    const bestEventRows = scores.map(s=>({name:s.raceName||`Futam ${s.raceId||s.scoreId}`, points:scoreNum(s,'total'), player:nameByUid.get(s.uid)||'Versenyző', sprint:s.eventType==='sprint'||String(s.raceId||'').endsWith('-sprint')})).sort((a,b)=>b.points-a.points).slice(0,5);
+    if (statsStatus) statsStatus.textContent = scores.length
+      ? `${users.length} játékos · ${scores.length} Firestore-pontrekord · 2026-os szezon`
+      : 'Még nincs megjeleníthető pontadat, vagy nincs olvasási jogosultság.';
+    if ($('statsOverviewCards')) {
+      const top = leaderboard[0];
+      const avg = scores.length ? (totalPoints / scores.length) : 0;
+      const best = bestEventRows[0];
+      const kpis = [
+        {label:'Összes kiosztott pont',value:totalPoints,sub:`${scores.length} pontozott rekord`,icon:'✦',tone:'red'},
+        {label:'Élen álló játékos',value:top?.name||'—',sub:top?`${top.total} ponttal`:'Nincs adat',icon:'♛',tone:'gold'},
+        {label:'Pontozott események',value:events.length,sub:`${events.filter(e=>!e.sprint).length} nagydíj · ${events.filter(e=>e.sprint).length} sprint`,icon:'▦',tone:'blue'},
+        {label:'Átlagos pont / rekord',value:avg.toLocaleString('hu-HU',{maximumFractionDigits:1}),sub:best?`Legjobb egyéni eredmény: ${best.points} pont`:'A pontok alapján számítva',icon:'↗',tone:'green'}
+      ];
+      $('statsOverviewCards').innerHTML=kpis.map(k=>`<article class="stats-kpi stats-tone-${k.tone}"><span class="stats-kpi-icon">${k.icon}</span><div><small>${safeText(k.label)}</small><strong>${safeText(k.value)}</strong><span>${safeText(k.sub)}</span></div></article>`).join('');
+    }
     if ($('statsCards')) {
       const max = Math.max(1, ...leaderboard.map(p => p.total));
-      $('statsCards').innerHTML = leaderboard.map(p => `
-        <article class="rank-card"><div class="rank-name">${safeText(p.name)}</div>
-        <div class="rank-total">${p.total} <small>pont</small></div>
-        <div class="stat-breakdown"><span>Pole: ${p.pole}</span><span>Idő: ${p.time}</span><span>Győztes: ${p.winner}</span><span>Bónusz: ${p.bonus}</span></div>
-        <div class="score-progress"><i style="width:${Math.round(p.total / max * 100)}%"></i></div>
-        <small>${p.events} pontozott esemény · átlag ${p.events ? (p.total / p.events).toFixed(1).replace('.', ',') : '0'} pont/esemény</small></article>`).join('');
+      $('statsCards').innerHTML = leaderboard.map((p, i) => `
+        <article class="stats-player-row"><span class="stats-player-rank">${i+1}</span><div class="stats-player-info"><strong>${safeText(p.name)}</strong><div class="stats-player-bar"><i style="width:${Math.round(p.total/max*100)}%"></i></div><small>${p.events} pontrekord · átlag ${p.events ? (p.total/p.events).toLocaleString('hu-HU',{maximumFractionDigits:1}) : '0'} pont/rekord</small></div><b>${p.total}<small> pont</small></b></article>`).join('') || '<p class="stats-empty">Nincs elérhető játékosadat.</p>';
+    }
+    if ($('statsCategories')) {
+      const maxComp=Math.max(1,...componentTotals.map(c=>c.points));
+      $('statsCategories').innerHTML=componentTotals.map(c=>`<div class="stats-category"><div class="stats-category-label"><span>${safeText(c.label)}</span><b>${c.points} <small>pont</small></b></div><div class="stats-category-track"><i class="tone-${c.color}" style="width:${Math.min(100,c.points/maxComp*100)}%"></i></div></div>`).join('') || '<p class="stats-empty">Nincs pontozási adat.</p>';
     }
     if ($('pointsChart')) {
-      const byEvent = new Map();
-      scores.forEach(s => {
-        const id = String(s.raceId || s.scoreId);
-        if (!byEvent.has(id)) byEvent.set(id, { name: s.raceName || id, points: 0, sprint: s.eventType === 'sprint' || id.endsWith('-sprint') });
-        byEvent.get(id).points += scoreNum(s, 'total');
-      });
-      $('pointsChart').innerHTML = [...byEvent.values()].sort((x, y) => {
-        const nx = Number((x.name.match(/^\d+/) || [999])[0]);
-        const ny = Number((y.name.match(/^\d+/) || [999])[0]);
-        return nx - ny;
-      }).map(e => `<div class="chart-row"><span>${safeText(e.name)}</span><div class="chart-track"><i style="width:${Math.min(100, e.points / Math.max(1, ...[...byEvent.values()].map(v => v.points)) * 100)}%"></i></div><b>${e.points}</b></div>`).join('');
+      $('pointsChart').innerHTML=events.length ? events.map((e,i)=>`<div class="stats-event-column" title="${safeText(e.name)}: ${e.points} pont"><div class="stats-event-value">${e.points}</div><div class="stats-event-bar ${e.sprint?'sprint':''}" style="height:${Math.max(4,e.points/maxEvent*100)}%"></div><span>${safeText((e.name||'').replace(/\s*(Grand Prix|Nagydíj)$/i,'').replace(/\s*[-–]\s*Sprint$/i,'').slice(0,9))}</span><small>${e.sprint?'SPR':'GP'}</small></div>`).join('') : '<p class="stats-empty">A pontozott események megjelennek, amint a Firestore tartalmaz ilyen adatokat.</p>';
+    }
+    if ($('statsBestEvents')) {
+      $('statsBestEvents').innerHTML=bestEventRows.length?bestEventRows.map((e,i)=>`<div class="stats-best-row"><span class="stats-best-index">${String(i+1).padStart(2,'0')}</span><div><strong>${safeText(e.name)}</strong><small>${safeText(e.player)} · ${e.sprint?'Sprint':'Nagydíj'}</small></div><b>${e.points}<small> pont</small></b></div>`).join(''):'<p class="stats-empty">Még nincs pontozott esemény.</p>';
     }
   } catch (error) {
     console.error('Ponttábla betöltési hiba:', error);
