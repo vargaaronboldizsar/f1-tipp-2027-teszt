@@ -840,3 +840,37 @@ button {
 #groupsPage input { font: inherit; }
 #groupsPage button:disabled { opacity:.55; cursor:wait; }
 #groupsPage .panel { min-width:0; }
+
+
+/* Pontozás, ranglista és statisztikák */
+.score-page { padding: 8px 0 28px; }
+.score-status { color: var(--muted); margin: 10px 0 18px; }
+.score-ranking { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 14px; margin: 18px 0 24px; }
+.rank-card { background: linear-gradient(145deg,#0b1821,#071017); border: 1px solid var(--line); border-radius: 13px; padding: 18px; min-width: 0; }
+.rank-first { border-color: var(--red); box-shadow: 0 0 0 1px color-mix(in srgb,var(--red) 25%,transparent); }
+.rank-position { color: var(--red); font-weight: 900; font-size: 12px; letter-spacing: 1px; }
+.rank-name { font-weight: 800; font-size: 18px; margin: 7px 0; overflow-wrap: anywhere; }
+.rank-total { font-size: 30px; font-weight: 950; letter-spacing: -1px; }
+.rank-total small { font-size: 12px; color: var(--muted); letter-spacing: 0; font-weight: 700; }
+.rank-split { display:flex; justify-content:space-between; gap:12px; border-top:1px solid var(--line); padding-top:12px; margin-top:12px; color:var(--muted); font-size:12px; }
+.rank-split b { color:var(--white); margin-left:5px; }
+.score-panel { padding: 0; overflow: hidden; margin-bottom: 22px; }
+.score-panel .panel-head { padding: 17px 20px; }
+.table-scroll { width:100%; overflow-x:auto; }
+.score-table { width:100%; border-collapse:collapse; min-width:680px; }
+.score-table th,.score-table td { padding:12px 14px; text-align:left; border-top:1px solid var(--line); white-space:nowrap; }
+.score-table th { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.6px; }
+.score-table td:last-child { color:var(--red); }
+.score-pill { font-size:9px; background:color-mix(in srgb,var(--red) 18%,transparent); color:var(--red); border-radius:4px; padding:3px 5px; font-weight:900; }
+.stat-breakdown { display:flex; flex-wrap:wrap; gap:7px 12px; color:var(--muted); font-size:11px; margin:12px 0; }
+.score-progress,.chart-track { height:7px; border-radius:10px; overflow:hidden; background:#17242e; }
+.score-progress i,.chart-track i { display:block; height:100%; border-radius:10px; background:var(--red); }
+.score-progress { margin:12px 0 8px; }
+.points-chart { padding:18px 20px; display:grid; gap:13px; }
+.chart-row { display:grid; grid-template-columns:minmax(100px,1fr) minmax(80px,2fr) 35px; gap:12px; align-items:center; font-size:12px; }
+.chart-row span { color:#dce5ed; overflow-wrap:anywhere; }
+.chart-row b { text-align:right; }
+@media(max-width:700px) {
+  .score-ranking { grid-template-columns:1fr; }
+  .chart-row { grid-template-columns:minmax(80px,1fr) minmax(55px,1.2fr) 28px; gap:8px; }
+}
