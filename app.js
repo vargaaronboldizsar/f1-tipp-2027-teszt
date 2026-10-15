@@ -556,31 +556,28 @@ $('saveTipsButton').addEventListener('click', saveTips);
 setInterval(() => {
   updateTipLocks();
 }, 30000);
-function showTipsPage() {
-  const content = document.querySelector('.content');
-  const tipsPage = $('tipsPage');
-
-  if (!content || !tipsPage) {
-    toast('A tippoldal HTML-része hiányzik. Ellenőrizd az index.html módosítását.');
-    return;
-  }
-
-  [...content.children].forEach(el => {
-    el.classList.toggle('hidden', el !== tipsPage && !el.classList.contains('footer'));
-  });
-
-  tipsPage.classList.remove('hidden');
-}
-
-function showHomePage() {
+function showOnlyPage(pageId) {
   const content = document.querySelector('.content');
   if (!content) return;
-
   [...content.children].forEach(el => {
-    el.classList.remove('hidden');
+    const isFooter = el.classList.contains('footer');
+    const isPage = ['tipsPage', 'groupsPage', 'rankingPage', 'statsPage'].includes(el.id);
+    if (isPage) el.classList.toggle('hidden', el.id !== pageId);
+    else el.classList.toggle('hidden', pageId !== 'home' && !isFooter);
   });
+  if (pageId === 'home') {
+    [...content.children].forEach(el => {
+      if (!['tipsPage', 'groupsPage', 'rankingPage', 'statsPage'].includes(el.id)) el.classList.remove('hidden');
+    });
+  }
 }
-
+function showTipsPage() {
+  if (!$('tipsPage')) return toast('A tippoldal HTML-része hiányzik.');
+  showOnlyPage('tipsPage');
+}
+function showHomePage() {
+  showOnlyPage('home');
+}
 function openSection(key) {
   if (key === 'settings') {
     if (!currentUser) {
@@ -591,32 +588,17 @@ function openSection(key) {
     $('settingsOverlay').classList.remove('hidden');
     return;
   }
-
-  if (key === 'tips') {
-    goTips();
-    return;
-  }
-
-  if (key === 'home') {
-    showHomePage();
-    return;
-  }
-
-  if (key === 'teams') {
-    showGroupsPage();
-    return;
-  }
-
+  if (key === 'tips') { goTips(); return; }
+  if (key === 'home') { showHomePage(); return; }
+  if (key === 'teams') { showGroupsPage(); return; }
+  if (key === 'ranking') { showOnlyPage('rankingPage'); loadScoreboard(); return; }
+  if (key === 'stats') { showOnlyPage('statsPage'); loadScoreboard(); return; }
   showHomePage();
-
   const messages = {
-    ranking: 'A ranglista bekötése következik.',
     calendar: 'A naptár bekötése következik.',
     drivers: 'A pilótalista bekötése következik.',
-    stats: 'A statisztikák bekötése következik.',
     rules: 'A játékszabályok bekötése következik.'
   };
-
   toast(messages[key] || 'Ez a nézet később készül el.');
 }
 
@@ -916,6 +898,107 @@ $('raceDetailsButton').addEventListener('click', () => {
   toast('A versenyhétvége részleteinek bekötése később következik.');
 });
 
+
+
+function safeText(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[ch]));
+}
+function scoreNum(score, key) {
+  const n = Number(score?.[key] ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+function eventSortValue(score) {
+  const m = String(score.raceId || '').match(/^(\d+)/);
+  return (m ? Number(m[1]) : 999) * 10 + (score.eventType === 'sprint' ? 0 : 1);
+}
+async function loadScoreboard() {
+  const rankingStatus = $('rankingStatus');
+  const statsStatus = $('statsStatus');
+  if (rankingStatus) rankingStatus.textContent = 'Pontok betöltése a Firestore-ból…';
+  if (statsStatus) statsStatus.textContent = 'Statisztikák betöltése a Firestore-ból…';
+  try {
+    const usersSnap = await getDocs(collection(db, 'users'));
+    const users = usersSnap.docs.map(d => ({ uid: d.id, ...d.data() }));
+    const scoreResults = await Promise.all(users.map(async user => {
+      const snap = await getDocs(collection(db, 'users', user.uid, 'scores'));
+      return snap.docs.map(d => ({ uid: user.uid, scoreId: d.id, ...d.data() }));
+    }));
+    const scores = scoreResults.flat().filter(s => Number(s.year || 2026) === 2026);
+    const nameByUid = new Map(users.map(u => [
+      u.uid, u.username || u.displayName || u.name || 'Versenyző'
+    ]));
+    const totals = new Map(users.map(u => [u.uid, {
+      uid: u.uid, name: nameByUid.get(u.uid), gp: 0, sprint: 0, total: 0, events: 0,
+      pole: 0, time: 0, winner: 0, bonus: 0
+    }]));
+    scores.forEach(s => {
+      const row = totals.get(s.uid);
+      if (!row) return;
+      const pts = scoreNum(s, 'total');
+      row.total += pts;
+      if (s.eventType === 'sprint' || String(s.raceId || '').endsWith('-sprint')) row.sprint += pts;
+      else row.gp += pts;
+      row.events++;
+      row.pole += scoreNum(s, 'polePoints');
+      row.time += scoreNum(s, 'timePoints');
+      row.winner += scoreNum(s, 'winnerPoints');
+      row.bonus += scoreNum(s, 'bonus');
+    });
+    const leaderboard = [...totals.values()].sort((x, y) => y.total - x.total || y.gp - x.gp || x.name.localeCompare(y.name, 'hu'));
+    if (rankingStatus) rankingStatus.textContent = scores.length
+      ? `${users.length} játékos · ${scores.length} pontozott esemény · 2026-os szezon`
+      : 'Még nincsenek pontdokumentumok, vagy nincs hozzájuk olvasási jogosultság.';
+    if ($('rankingCards')) {
+      $('rankingCards').innerHTML = leaderboard.map((p, i) => `
+        <article class="rank-card ${i === 0 ? 'rank-first' : ''}">
+          <div class="rank-position">${i + 1}.</div>
+          <div class="rank-name">${safeText(p.name)}</div>
+          <div class="rank-total">${p.total} <small>pont</small></div>
+          <div class="rank-split"><span>Nagydíj <b>${p.gp}</b></span><span>Sprint <b>${p.sprint}</b></span></div>
+        </article>`).join('');
+    }
+    const sortedScores = [...scores].sort((x, y) => eventSortValue(x) - eventSortValue(y) || nameByUid.get(x.uid).localeCompare(nameByUid.get(y.uid), 'hu'));
+    if ($('eventScoresBody')) {
+      $('eventScoresBody').innerHTML = sortedScores.length ? sortedScores.map(s => `
+        <tr><td>${safeText(s.raceName || ('Futam ' + s.raceId))}${s.eventType === 'sprint' || String(s.raceId || '').endsWith('-sprint') ? ' <span class="score-pill">SPRINT</span>' : ''}</td>
+        <td>${safeText(nameByUid.get(s.uid))}</td><td>${scoreNum(s, 'polePoints')}</td><td>${scoreNum(s, 'timePoints')}</td>
+        <td>${scoreNum(s, 'winnerPoints')}</td><td>${scoreNum(s, 'bonus')}</td><td><b>${scoreNum(s, 'total')}</b></td></tr>`).join('')
+        : '<tr><td colspan="7">Nincs megjeleníthető pontozás.</td></tr>';
+    }
+    if (statsStatus) statsStatus.textContent = `Összesen ${scores.reduce((n, s) => n + scoreNum(s, 'total'), 0)} pont · ${scores.length} pontozott esemény`;
+    if ($('statsCards')) {
+      const max = Math.max(1, ...leaderboard.map(p => p.total));
+      $('statsCards').innerHTML = leaderboard.map(p => `
+        <article class="rank-card"><div class="rank-name">${safeText(p.name)}</div>
+        <div class="rank-total">${p.total} <small>pont</small></div>
+        <div class="stat-breakdown"><span>Pole: ${p.pole}</span><span>Idő: ${p.time}</span><span>Győztes: ${p.winner}</span><span>Bónusz: ${p.bonus}</span></div>
+        <div class="score-progress"><i style="width:${Math.round(p.total / max * 100)}%"></i></div>
+        <small>${p.events} pontozott esemény · átlag ${p.events ? (p.total / p.events).toFixed(1).replace('.', ',') : '0'} pont/esemény</small></article>`).join('');
+    }
+    if ($('pointsChart')) {
+      const byEvent = new Map();
+      scores.forEach(s => {
+        const id = String(s.raceId || s.scoreId);
+        if (!byEvent.has(id)) byEvent.set(id, { name: s.raceName || id, points: 0, sprint: s.eventType === 'sprint' || id.endsWith('-sprint') });
+        byEvent.get(id).points += scoreNum(s, 'total');
+      });
+      $('pointsChart').innerHTML = [...byEvent.values()].sort((x, y) => {
+        const nx = Number((x.name.match(/^\d+/) || [999])[0]);
+        const ny = Number((y.name.match(/^\d+/) || [999])[0]);
+        return nx - ny;
+      }).map(e => `<div class="chart-row"><span>${safeText(e.name)}</span><div class="chart-track"><i style="width:${Math.min(100, e.points / Math.max(1, ...[...byEvent.values()].map(v => v.points)) * 100)}%"></i></div><b>${e.points}</b></div>`).join('');
+    }
+  } catch (error) {
+    console.error('Ponttábla betöltési hiba:', error);
+    const message = 'Nem sikerült beolvasni a pontokat. Ellenőrizd a Firestore Rules olvasási jogosultságait.';
+    if (rankingStatus) rankingStatus.textContent = message + ' (' + error.message + ')';
+    if (statsStatus) statsStatus.textContent = message + ' (' + error.message + ')';
+  }
+}
+$('refreshScoresButton')?.addEventListener('click', loadScoreboard);
+$('refreshStatsButton')?.addEventListener('click', loadScoreboard);
 
 async function loadLeaderboardData() {
   const status = document.getElementById('leaderboardStatus');
