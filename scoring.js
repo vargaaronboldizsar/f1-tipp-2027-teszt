@@ -116,3 +116,102 @@ export function getPlayerSeasonStats(
     gpEvents: gp.length
   };
 }
+
+
+/**
+ * Egy sprint vagy nagydíj pontjainak kiszámítása.
+ *
+ * tippek: [
+ *   { uid, username, poleDriver, poleTime, winnerDriver }
+ * ]
+ *
+ * eredmeny: {
+ *   poleDriver, poleTime, winnerDriver
+ * }
+ *
+ * A poleTime formátuma például: "1:32.456"
+ */
+export function calculateEventPoints(tippek, eredmeny) {
+  if (!Array.isArray(tippek) || !eredmeny) {
+    throw new Error("Hiányzó tippek vagy versenyeredmény.");
+  }
+
+  const parseTime = (value) => {
+    const match = String(value || "")
+      .trim()
+      .match(/^(\d+):(\d{2})\.(\d{3})$/);
+
+    if (!match) return null;
+
+    const minutes = Number(match[1]);
+    const seconds = Number(match[2]);
+    const milliseconds = Number(match[3]);
+
+    if (seconds >= 60) return null;
+
+    return (minutes * 60 + seconds) * 1000 + milliseconds;
+  };
+
+  const actualTime = parseTime(eredmeny.poleTime);
+
+  if (
+    actualTime === null ||
+    !eredmeny.poleDriver ||
+    !eredmeny.winnerDriver
+  ) {
+    throw new Error("A hivatalos eredmény még nem teljes.");
+  }
+
+  const validTimes = tippek
+    .map(tip => ({
+      uid: tip.uid,
+      time: parseTime(tip.poleTime)
+    }))
+    .filter(tip => tip.uid && tip.time !== null);
+
+  const minimumDifference = validTimes.length
+    ? Math.min(
+        ...validTimes.map(tip => Math.abs(tip.time - actualTime))
+      )
+    : null;
+
+  return tippek
+    .filter(tip => tip.uid)
+    .map(tip => {
+      const guessedTime = parseTime(tip.poleTime);
+
+      const poleTimePoints =
+        guessedTime !== null &&
+        minimumDifference !== null &&
+        Math.abs(guessedTime - actualTime) === minimumDifference
+          ? 1
+          : 0;
+
+      const poleDriverPoints =
+        tip.poleDriver === eredmeny.poleDriver ? 1 : 0;
+
+      const winnerPoints =
+        tip.winnerDriver === eredmeny.winnerDriver ? 2 : 0;
+
+      const bonusPoints =
+        poleTimePoints === 1 &&
+        poleDriverPoints === 1 &&
+        winnerPoints === 2
+          ? 1
+          : 0;
+
+      return {
+        uid: tip.uid,
+        username: tip.username || "Versenyző",
+        poleTimePoints,
+        poleDriverPoints,
+        winnerPoints,
+        bonusPoints,
+        totalPoints:
+          poleTimePoints +
+          poleDriverPoints +
+          winnerPoints +
+          bonusPoints
+      };
+    });
+}
