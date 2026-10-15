@@ -108,6 +108,7 @@ onAuthStateChanged(auth, async (user) => {
 
   $('loginOpen').classList.toggle('hidden', !!user);
   $('logoutButton').classList.toggle('hidden', !user);
+  $('profileNavButton')?.classList.toggle('hidden', !user);
 
   $('headerName').textContent = user?.displayName || 'Vendég';
   $('headerTeam').textContent = user ? 'F1 Tipp 2026' : 'Jelentkezz be';
@@ -168,6 +169,8 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 $('loginOpen').addEventListener('click', () => { $('loginOverlay').classList.remove('hidden'); $('loginStatus').textContent = ''; });
+$('headerAvatar').addEventListener('click', () => openSection('profile'));
+$('headerAvatar').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openSection('profile'); } });
 $('loginCancel').addEventListener('click', () => $('loginOverlay').classList.add('hidden'));
 $('loginButton').addEventListener('click', async () => {
   const b = $('loginButton'); b.disabled = true; $('loginStatus').textContent = 'Kapcsolódás a Google-fiókhoz…'; try {
