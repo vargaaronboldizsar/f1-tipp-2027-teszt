@@ -542,7 +542,7 @@ function updateTipLocks() {
   poleField.disabled = poleLocked;
 
   // A sprint event does not use the normal GP pole-time field.
-  timeField.disabled = isSprint || poleLocked;
+  timeField.disabled = poleLocked;
 
   winnerField.disabled = winnerLocked;
 }
