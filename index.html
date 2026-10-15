@@ -709,6 +709,19 @@
     <div class="table-scroll"><table class="score-table"><thead><tr><th>#</th><th>Futam</th><th>Típus</th><th>Áron</th><th>Geri</th><th>Nándi</th><th>Részletek</th></tr></thead><tbody id="eventScoresBody"></tbody></table></div>
   </div>
 </section>
+<section id="profilePage" class="profile-page hidden">
+  <div class="profile-hero panel">
+    <div class="profile-hero-art"></div>
+    <div class="profile-identity"><div id="profileAvatarLarge" class="helmet-avatar helmet-ferrari" aria-label="Kiválasztott sisak avatár"><span class="helmet-visor"></span></div><div class="profile-identity-text"><span class="season-chip">APEX GRID MEMBER</span><h1 id="profileDisplayName">Versenyző</h1><p id="profileMeta">Jelentkezz be a profilod megtekintéséhez</p><div class="profile-badges" id="profileBadgeRow"><span class="profile-badge">🏁 Újonc</span></div></div></div>
+    <button class="secondary profile-edit-button" id="profileEditButton">Profil szerkesztése</button>
+  </div>
+  <div class="profile-stat-grid"><article class="panel profile-stat"><small>ÖSSZPONTSZÁM</small><strong id="profilePoints">—</strong><span>Szezonpontok</span></article><article class="panel profile-stat"><small>RANGLISTAHELY</small><strong id="profileRank">—</strong><span>Helyezés a játékosok között</span></article><article class="panel profile-stat"><small>TELITALÁLATOK</small><strong id="profileHits">—</strong><span>Helyes tippek</span></article><article class="panel profile-stat"><small>LEGJOBB FUTAM</small><strong id="profileBest">—</strong><span>Egy eseményen szerzett pont</span></article></div>
+  <section class="panel helmet-gallery-panel"><div class="gallery-heading"><div><span class="eyebrow">PERSONALIZE YOUR GRID ID</span><h2>Avatárom kiválasztása</h2><p>Válassz ikonikus F1-es sisakok által inspirált avatárt a profilodhoz.</p></div><span class="gallery-note">A sisakok jelenleg stilizált avatár-illusztrációk. A fotóalapú, licencellenőrzött gyűjtemény külön bővíthető.</span></div>
+    <div class="helmet-tabs" id="helmetTabs"><button class="active" data-helmet-filter="all">Összes</button><button data-helmet-filter="classic">Classic Legends <small>1950–1989</small></button><button data-helmet-filter="champion">World Champions <small>Bajnoki szezonok</small></button><button data-helmet-filter="modern">Modern Icons <small>1990–2023</small></button><button data-helmet-filter="current">Aktuális mezőny <small>2024–2026</small></button></div>
+    <div class="helmet-gallery-layout"><div><div class="helmet-search-row"><input id="helmetSearch" type="search" placeholder="Pilóta vagy sisak keresése…"/><select id="helmetYearFilter"><option value="all">Minden korszak</option><option value="classic">1950–1989</option><option value="champion">Világbajnokok</option><option value="modern">1990–2023</option><option value="current">2024–2026</option></select></div><div id="helmetGallery" class="helmet-gallery-grid"></div></div><aside class="helmet-preview panel"><div id="helmetPreviewArt" class="helmet-preview-art helmet-ferrari"><span class="helmet-visor"></span></div><span class="season-chip" id="helmetPreviewTag">BAJNOKI SISAK</span><h3 id="helmetPreviewName">Michael Schumacher · 2000</h3><p id="helmetPreviewMeta">Ferrari · Világbajnoki szezon</p><p id="helmetPreviewDescription">Válassz egy sisakot a galériából az előnézethez.</p><button class="primary" id="saveHelmetButton">✓ Ezt az avatárt választom</button><p class="profile-save-status" id="helmetSaveStatus" role="status"></p></aside></div>
+  </section>
+  <div class="profile-bottom-grid"><section class="panel profile-subpanel"><h2>Játékosadatok</h2><div class="profile-data-row"><span>Felhasználónév</span><strong id="profileUsername">—</strong></div><div class="profile-data-row"><span>Kedvenc csapat</span><strong id="profileTeam">—</strong></div><div class="profile-data-row"><span>Kedvenc pilóta</span><strong id="profileDriver">—</strong></div><p class="subtle">A profil neve, csapata és kedvenc pilótája a Beállításokban módosítható.</p></section><section class="panel profile-subpanel"><h2>Jelvényeim</h2><div class="profile-badge-list" id="profileBadges"><span class="profile-badge">🏁 Újonc</span><span class="profile-badge muted-badge">🏆 Első dobogó · később</span><span class="profile-badge muted-badge">🎯 Telitalálat · később</span></div><p class="subtle">A jelvények fokozatosan, ellenőrzött játékadatok alapján aktiválhatók.</p></section></div>
+</section>
 <section id="statsPage" class="score-page hidden">
   <div class="section-head"><div><h2>Statisztikák</h2><p>Teljesítmény és ponteloszlás a betöltött eredmények alapján.</p></div><button class="secondary" id="refreshStatsButton">Frissítés ↻</button></div>
   <p id="statsStatus" class="score-status">Statisztikák betöltése…</p>
@@ -855,4 +868,3 @@
   </script>
  </body>
 </html>
-
