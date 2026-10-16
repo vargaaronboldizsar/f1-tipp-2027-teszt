@@ -995,7 +995,9 @@ function safeText(value) {
   }[ch]));
 }
 function scoreNum(score, key) {
-  const n = Number(score?.[key] ?? 0);
+  const aliases = key === 'total' ? ['total','totalPoints','points'] : key === 'bonus' ? ['bonus','bonusPoints'] : key === 'polePoints' ? ['polePoints','polePositionPoints','pole'] : key === 'timePoints' ? ['timePoints','poleTimePoints','time'] : key === 'winnerPoints' ? ['winnerPoints','raceWinnerPoints','winner'] : [key];
+  const raw = aliases.map(k => score?.[k]).find(v => v !== undefined && v !== null && v !== '');
+  const n = Number(raw ?? 0);
   return Number.isFinite(n) ? n : 0;
 }
 function eventSortValue(score) {
@@ -1048,18 +1050,26 @@ async function loadScoreboard() {
     ];
     // A nyilvános ranglista-gyűjteményből dinamikusan felvesszük az új játékosokat.
     // A teljes /users gyűjteményt szándékosan nem olvassuk, mert privát profiladatokat tartalmaz.
-    let users = fallbackUsers;
+    // A nyilvános roster bővíti az ismert listát; nem írhatja felül a fallback játékosokat.
+    // A teljes /users gyűjteményt továbbra sem olvassuk, mert privát profiladatokat tartalmaz.
+    const userMap = new Map(fallbackUsers.map(u => [u.uid, {...u}]));
     try {
       const publicPlayers = await getDocs(collection(db, 'leaderboard'));
-      if (!publicPlayers.empty) users = publicPlayers.docs.map(d => ({uid:d.id, ...d.data(), username:d.data().username || d.data().displayName || d.data().name || 'Versenyző'}));
+      publicPlayers.docs.forEach(d => {
+        const data = d.data() || {};
+        const prior = userMap.get(d.id) || {};
+        userMap.set(d.id, { ...prior, ...data, uid: d.id,
+          username: data.username || data.displayName || data.name || prior.username || 'Versenyző' });
+      });
     } catch (publicRosterError) {
-      console.info('A publikus játékoslista nem olvasható; a meglévő engedélyezett lista használata.', publicRosterError.message);
+      console.info('A publikus játékoslista nem olvasható; az engedélyezett ismert játékoslista használata.', publicRosterError.message);
     }
+    const users = [...userMap.values()].map(u => ({...u, username:u.username || u.displayName || u.name || 'Versenyző'}));
     const scoreResults = await Promise.all(users.map(async user => {
       const snap = await getDocs(collection(db, 'users', user.uid, 'scores'));
       return snap.docs.map(d => ({ uid: user.uid, scoreId: d.id, ...d.data() }));
     }));
-    const scores = scoreResults.flat().filter(s => Number(s.year || 2026) === 2026).map(s => ({...s, name: users.find(u=>u.uid===s.uid)?.username || 'Versenyző'}));
+    const scores = scoreResults.flat().filter(s => Number(s.year ?? s.season ?? 2026) === 2026).map(s => ({...s, total:scoreNum(s,'total'), name: users.find(u=>u.uid===s.uid)?.username || 'Versenyző'}));
     const nameByUid = new Map(users.map(u => [
       u.uid, u.username || u.displayName || u.name || 'Versenyző'
     ]));
@@ -1195,9 +1205,17 @@ let scoreLiveUnsubs = [];
 let scoreLiveStarted = false;
 function startScoreLiveUpdates() {
   if(scoreLiveStarted) return; scoreLiveStarted=true;
-  const ids=['A0c1CfsPutPLAoNSaiTStBFTFvs1','3ZzPzpz5cOdpc61eAvTVax2zvQz2','LadIkNLT9mdEo9d09mg2LWLcemf1'];
-  ids.forEach(uid=>scoreLiveUnsubs.push(onSnapshot(collection(db,'users',uid,'scores'),()=>{loadScoreboard();},error=>{console.warn('Élő pontfrissítés nem érhető el:',error.message);if($('statsStatus'))$('statsStatus').textContent='Az élő frissítéshez Firestore olvasási jogosultság szükséges.';})));
-  scoreLiveUnsubs.push(onSnapshot(collection(db,'leaderboard'),()=>{loadScoreboard();},error=>console.info('Publikus ranglista élő frissítése nem érhető el:',error.message)));
+  const ids=new Set(['A0c1CfsPutPLAoNSaiTStBFTFvs1','3ZzPzpz5cOdpc61eAvTVax2zvQz2','LadIkNLT9mdEo9d09mg2LWLcemf1']);
+  const subscribeUid = uid => {
+    if (!uid || ids.has('subscribed:'+uid)) return;
+    ids.add('subscribed:'+uid);
+    scoreLiveUnsubs.push(onSnapshot(collection(db,'users',uid,'scores'),()=>{loadScoreboard();},error=>{console.warn('Élő pontfrissítés nem érhető el:',error.message);if($('statsStatus'))$('statsStatus').textContent='Az élő frissítéshez Firestore olvasási jogosultság szükséges.';}));
+  };
+  [...ids].filter(x=>!x.startsWith('subscribed:')).forEach(subscribeUid);
+  scoreLiveUnsubs.push(onSnapshot(collection(db,'leaderboard'),snap=>{
+    snap.docs.forEach(d=>subscribeUid(d.id));
+    loadScoreboard();
+  },error=>console.info('Publikus ranglista élő frissítése nem érhető el:',error.message)));
 }
 startScoreLiveUpdates();
 
