@@ -2,7 +2,7 @@
 // 1. Firebase inicializálása és közös segédfüggvények
 // -----------------------------------------------------------------------------
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, setPersistence, browserLocalPersistence, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, setPersistence, browserLocalPersistence, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js';
 import {
   getFirestore,
   doc,
@@ -13,7 +13,8 @@ import {
   serverTimestamp,
   writeBatch,
   query,
-  where
+  where,
+  onSnapshot
 } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js';
 import { buildLeaderboard, getPlayerSeasonStats } from './scoring.js';
 
@@ -172,21 +173,9 @@ $('loginOpen').addEventListener('click', () => { $('loginOverlay').classList.rem
 $('headerAvatar').addEventListener('click', () => openSection('profile'));
 $('headerAvatar').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openSection('profile'); } });
 $('loginCancel').addEventListener('click', () => $('loginOverlay').classList.add('hidden'));
-function isIOSInstalledWebApp() {
-  const ua = navigator.userAgent || '';
-  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const standalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
-  return isIOS && standalone;
-}
-
-// Ha az iOS főképernyőre telepített PWA-ban a popup/új ablak nem megbízható,
-// teljes oldalas OAuth-átirányítást használunk. A Firebase az visszatéréskor
-// az auth állapotot automatikusan helyreállítja.
-getRedirectResult(auth).catch(error => {
-  console.warn('Google-átirányítás visszatérési hiba:', error);
-  const status = $('loginStatus');
-  if (status && error?.code) status.textContent = 'Google-belépési hiba: ' + error.code;
-});
+// GitHub Pages alatt a redirectes Google-belépés iOS-en a külső auth domain
+// miatt nem mindig állítja vissza a munkamenetet. Popup-alapú belépést használunk,
+// amely a GitHub Pages domainről is vissza tud térni az alkalmazásba.
 
 $('loginButton').addEventListener('click', async () => {
   const b = $('loginButton');
@@ -195,11 +184,6 @@ $('loginButton').addEventListener('click', async () => {
   $('loginStatus').textContent = 'Kapcsolódás a Google-fiókhoz…';
   try {
     await setPersistence(auth, browserLocalPersistence);
-    if (isIOSInstalledWebApp()) {
-      $('loginStatus').textContent = 'Átirányítás a biztonságos Google-belépéshez…';
-      await signInWithRedirect(auth, provider);
-      return;
-    }
     await signInWithPopup(auth, provider);
     $('loginOverlay').classList.add('hidden');
   } catch (e) {
@@ -1018,6 +1002,36 @@ function eventSortValue(score) {
   const m = String(score.raceId || '').match(/^(\d+)/);
   return (m ? Number(m[1]) : 999) * 10 + (score.eventType === 'sprint' ? 0 : 1);
 }
+
+let statsSnapshotData = { users: [], scores: [], leaderboard: [], events: [], components: [] };
+let activeStatsTab = 'overview';
+const statsEsc = value => safeText(String(value ?? '—'));
+function renderStatsDetail() {
+  const root = $('statsDetailView'); if (!root) return;
+  const {users,scores,leaderboard,events,components}=statsSnapshotData;
+  const points = s => scoreNum(s,'total');
+  const fmt = n => Number(n||0).toLocaleString('hu-HU',{maximumFractionDigits:1});
+  const playerTotals = leaderboard;
+  const head = (title,desc='Az adatok a jelenleg betöltött Firestore-pontrekordokból származnak.') => `<h2>${title}</h2><p>${desc}</p>`;
+  const table = (headers, rows) => `<div style="overflow-x:auto"><table class="stats-data-table"><thead><tr>${headers.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.length?rows.join(''):`<tr><td colspan="${headers.length}">Ehhez a nézethez még nincs elegendő adat.</td></tr>`}</tbody></table></div>`;
+  root.classList.remove('hidden');
+  if(activeStatsTab==='overview'){root.classList.add('hidden');return;}
+  if(activeStatsTab==='events'){
+    root.innerHTML=head('Futamonkénti eredmények','Sprint és nagydíj külön eseményként szerepel. A játékosok pontjai az adatbázisban tárolt értékek.')+table(['#','Esemény','Típus','Játékos','Pont'],events.flatMap((ev,i)=>ev.scores.sort((a,b)=>points(b)-points(a)).map(s=>`<tr><td>${i+1}</td><td>${statsEsc(ev.name)}</td><td>${ev.sprint?'Sprint':'Nagydíj'}</td><td>${statsEsc(s.name||playerTotals.find(p=>p.uid===s.uid)?.name||s.uid)}</td><td><b>${fmt(points(s))}</b></td></tr>`)));
+  } else if(activeStatsTab==='categories'){
+    const total=Math.max(1,scores.reduce((n,s)=>n+points(s),0));
+    root.innerHTML=head('Kategóriák és pontforrások','Csak a pontdokumentumokban ténylegesen tárolt kategóriapontok jelennek meg. A hiányzó mezőket nem tekintjük találatnak.')+`<div class="stats-category-list">${components.map(c=>`<div><div class="stats-category-label"><span>${statsEsc(c.label)}</span><b>${fmt(c.points)} pont · ${Math.round(c.points/total*100)}%</b></div><div class="stats-category-track"><i class="tone-${c.color}" style="width:${Math.min(100,c.points/total*100)}%"></i></div></div>`).join('')}</div>`+table(['Játékos','Pole pont','Időtipp pont','Győztes pont','Bónusz','Összesen'],playerTotals.map(p=>`<tr><td>${statsEsc(p.name)}</td><td>${fmt(p.pole)}</td><td>${fmt(p.time)}</td><td>${fmt(p.winner)}</td><td>${fmt(p.bonus)}</td><td><b>${fmt(p.total)}</b></td></tr>`));
+  } else if(activeStatsTab==='players'){
+    root.innerHTML=head('Játékosok teljesítménye','Rangsor összpontszám alapján. Az átlag a játékoshoz tartozó pontrekordok számával osztva értendő.')+table(['Hely','Játékos','Összpont','Rekordok','Átlag','Nagydíj','Sprint'],playerTotals.map((p,i)=>`<tr><td>${i+1}</td><td>${statsEsc(p.name)}</td><td><b>${fmt(p.total)}</b></td><td>${p.events}</td><td>${fmt(p.events?p.total/p.events:0)}</td><td>${fmt(p.gp)}</td><td>${fmt(p.sprint)}</td></tr>`));
+  } else if(activeStatsTab==='compare'){
+    const opts=playerTotals.map(p=>`<option value="${statsEsc(p.uid)}">${statsEsc(p.name)}</option>`).join('');
+    root.innerHTML=head('Játékos-összehasonlítás','Válassz két játékost. Az összevetés az azonos adatforrásból számolt pontokra épül.')+`<label>Első játékos <select class="stats-control" id="statsCompareA">${opts}</select></label><label>Második játékos <select class="stats-control" id="statsCompareB">${opts}</select></label><div id="statsCompareResults"></div>`;
+    const update=()=>{const a=playerTotals.find(p=>p.uid===$('statsCompareA')?.value)||playerTotals[0], b=playerTotals.find(p=>p.uid===$('statsCompareB')?.value)||playerTotals[1]||playerTotals[0];const target=$('statsCompareResults');if(!target||!a||!b){if(target)target.innerHTML='<p>Nincs összehasonlítható játékosadat.</p>';return;}target.innerHTML=`<div class="stats-compare-grid"><div class="stats-compare-card"><strong>${statsEsc(a.name)}</strong><div>Összpontszám: <b>${fmt(a.total)}</b></div><div>Átlag / rekord: <b>${fmt(a.events?a.total/a.events:0)}</b></div><div>Nagydíj: ${fmt(a.gp)} · Sprint: ${fmt(a.sprint)}</div></div><div class="stats-compare-card"><strong>${statsEsc(b.name)}</strong><div>Összpontszám: <b>${fmt(b.total)}</b></div><div>Átlag / rekord: <b>${fmt(b.events?b.total/b.events:0)}</b></div><div>Nagydíj: ${fmt(b.gp)} · Sprint: ${fmt(b.sprint)}</div></div></div><p>Pontkülönbség: <b>${fmt(Math.abs(a.total-b.total))}</b> · ${a.total===b.total?'Döntetlen':a.total>b.total?statsEsc(a.name)+' vezet':statsEsc(b.name)+' vezet'}</p>`;};
+    $('statsCompareA')?.addEventListener('change',update);$('statsCompareB')?.addEventListener('change',update);update();
+  }
+}
+document.getElementById('statsSectionTabs')?.addEventListener('click', event=>{const button=event.target.closest('[data-stats-tab]');if(!button)return;activeStatsTab=button.dataset.statsTab;document.querySelectorAll('[data-stats-tab]').forEach(b=>{const active=b===button;b.classList.toggle('active',active);b.setAttribute('aria-selected',String(active));});renderStatsDetail();});
+
 async function loadScoreboard() {
   const rankingStatus = $('rankingStatus');
   const statsStatus = $('statsStatus');
@@ -1027,16 +1041,25 @@ async function loadScoreboard() {
     // Tesztprojekt: ne olvassuk le a teljes /users gyűjteményt,
     // mert az privát profiladatokat tartalmaz. A tesztfelhasználók UID-jeit
     // explicit listából használjuk, és csak a scores alkollekciót kérjük le.
-    const users = [
+    const fallbackUsers = [
       { uid: 'A0c1CfsPutPLAoNSaiTStBFTFvs1', username: 'Geri', team: 'mercedes' },
       { uid: '3ZzPzpz5cOdpc61eAvTVax2zvQz2', username: 'Nándi', team: 'williams' },
       { uid: 'LadIkNLT9mdEo9d09mg2LWLcemf1', username: 'Áron', team: 'redbull' }
     ];
+    // A nyilvános ranglista-gyűjteményből dinamikusan felvesszük az új játékosokat.
+    // A teljes /users gyűjteményt szándékosan nem olvassuk, mert privát profiladatokat tartalmaz.
+    let users = fallbackUsers;
+    try {
+      const publicPlayers = await getDocs(collection(db, 'leaderboard'));
+      if (!publicPlayers.empty) users = publicPlayers.docs.map(d => ({uid:d.id, ...d.data(), username:d.data().username || d.data().displayName || d.data().name || 'Versenyző'}));
+    } catch (publicRosterError) {
+      console.info('A publikus játékoslista nem olvasható; a meglévő engedélyezett lista használata.', publicRosterError.message);
+    }
     const scoreResults = await Promise.all(users.map(async user => {
       const snap = await getDocs(collection(db, 'users', user.uid, 'scores'));
       return snap.docs.map(d => ({ uid: user.uid, scoreId: d.id, ...d.data() }));
     }));
-    const scores = scoreResults.flat().filter(s => Number(s.year || 2026) === 2026);
+    const scores = scoreResults.flat().filter(s => Number(s.year || 2026) === 2026).map(s => ({...s, name: users.find(u=>u.uid===s.uid)?.username || 'Versenyző'}));
     const nameByUid = new Map(users.map(u => [
       u.uid, u.username || u.displayName || u.name || 'Versenyző'
     ]));
@@ -1116,6 +1139,9 @@ async function loadScoreboard() {
       { key:'bonus', label:'Bónuszpontok', color:'green' }
     ].map(c => ({...c, points:scores.reduce((n,s)=>n+scoreNum(s,c.key),0)}));
     const bestEventRows = scores.map(s=>({name:s.raceName||`Futam ${s.raceId||s.scoreId}`, points:scoreNum(s,'total'), player:nameByUid.get(s.uid)||'Versenyző', sprint:s.eventType==='sprint'||String(s.raceId||'').endsWith('-sprint')})).sort((a,b)=>b.points-a.points).slice(0,5);
+    statsSnapshotData = { users, scores, leaderboard, events, components: componentTotals.map(c=>({...c})).map(c=>({...c,points:Number(c.points||0)})) };
+    // Pontadatok frissítésénél a megnyitott résznézet is azonnal újrarenderelődik.
+    renderStatsDetail();
     if (statsStatus) statsStatus.textContent = scores.length
       ? `${users.length} játékos · ${scores.length} Firestore-pontrekord · 2026-os szezon`
       : 'Még nincs megjeleníthető pontadat, vagy nincs olvasási jogosultság.';
@@ -1165,6 +1191,15 @@ async function loadScoreboard() {
 }
 $('refreshScoresButton')?.addEventListener('click', loadScoreboard);
 $('refreshStatsButton')?.addEventListener('click', loadScoreboard);
+let scoreLiveUnsubs = [];
+let scoreLiveStarted = false;
+function startScoreLiveUpdates() {
+  if(scoreLiveStarted) return; scoreLiveStarted=true;
+  const ids=['A0c1CfsPutPLAoNSaiTStBFTFvs1','3ZzPzpz5cOdpc61eAvTVax2zvQz2','LadIkNLT9mdEo9d09mg2LWLcemf1'];
+  ids.forEach(uid=>scoreLiveUnsubs.push(onSnapshot(collection(db,'users',uid,'scores'),()=>{loadScoreboard();},error=>{console.warn('Élő pontfrissítés nem érhető el:',error.message);if($('statsStatus'))$('statsStatus').textContent='Az élő frissítéshez Firestore olvasási jogosultság szükséges.';})));
+  scoreLiveUnsubs.push(onSnapshot(collection(db,'leaderboard'),()=>{loadScoreboard();},error=>console.info('Publikus ranglista élő frissítése nem érhető el:',error.message)));
+}
+startScoreLiveUpdates();
 
 async function loadLeaderboardData() {
   const status = document.getElementById('leaderboardStatus');
