@@ -1076,3 +1076,14 @@ button {
 .stats-scoring-note{font-size:11px;line-height:1.5;color:#91a8ba;margin:12px 0 0}
 @media(max-width:1100px){.stats-official-summary{grid-template-columns:35px minmax(150px,1.5fr) 64px minmax(140px,1fr) minmax(130px,1fr) 24px}.stats-event-kpi{display:none}}
 @media(max-width:700px){.stats-official-summary{grid-template-columns:32px minmax(130px,1fr) 55px 24px;gap:8px;padding:11px}.stats-official-summary .stats-official-fact{display:none}.stats-official-name strong{font-size:12px}.stats-official-result-cards{grid-template-columns:1fr}.stats-events-toolbar #statsOfficialStatus{width:100%;margin-left:0}}
+
+/* Futamonkénti tipp-összehasonlítás: a különbség jól látható, de visszafogott. */
+.stats-official-result-cards{grid-template-columns:repeat(3,minmax(0,1fr))}
+.stats-prediction-table{min-width:760px}
+.stats-prediction-table thead th{white-space:normal}
+.stats-time-delta{display:block;margin-top:4px;font-size:10px;font-weight:700}
+.stats-time-delta.correct{color:#20d6a0}
+.stats-time-delta.wrong{color:#ff667d}
+.stats-prediction-table .stats-cell-status{margin-top:5px}
+.stats-prediction-table .stats-cell-points{font-size:10px;line-height:1.5;color:#90a8bd;white-space:normal;max-width:220px}
+@media(max-width:700px){.stats-official-result-cards{grid-template-columns:1fr}.stats-prediction-table{min-width:700px}}
