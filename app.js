@@ -2,7 +2,7 @@
 // 1. Firebase inicializálása és közös segédfüggvények
 // -----------------------------------------------------------------------------
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js';
-import { getAuth, GoogleAuthProvider, signInWithPopup, setPersistence, browserLocalPersistence, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, setPersistence, browserLocalPersistence, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js';
 import {
   getFirestore,
   doc,
@@ -172,19 +172,47 @@ $('loginOpen').addEventListener('click', () => { $('loginOverlay').classList.rem
 $('headerAvatar').addEventListener('click', () => openSection('profile'));
 $('headerAvatar').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openSection('profile'); } });
 $('loginCancel').addEventListener('click', () => $('loginOverlay').classList.add('hidden'));
+function isIOSInstalledWebApp() {
+  const ua = navigator.userAgent || '';
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const standalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+  return isIOS && standalone;
+}
+
+// Ha az iOS főképernyőre telepített PWA-ban a popup/új ablak nem megbízható,
+// teljes oldalas OAuth-átirányítást használunk. A Firebase az visszatéréskor
+// az auth állapotot automatikusan helyreállítja.
+getRedirectResult(auth).catch(error => {
+  console.warn('Google-átirányítás visszatérési hiba:', error);
+  const status = $('loginStatus');
+  if (status && error?.code) status.textContent = 'Google-belépési hiba: ' + error.code;
+});
+
 $('loginButton').addEventListener('click', async () => {
-  const b = $('loginButton'); b.disabled = true; $('loginStatus').textContent = 'Kapcsolódás a Google-fiókhoz…'; try {
+  const b = $('loginButton');
+  b.disabled = true;
+  $('loginStatus').classList.remove('error');
+  $('loginStatus').textContent = 'Kapcsolódás a Google-fiókhoz…';
+  try {
     await setPersistence(auth, browserLocalPersistence);
+    if (isIOSInstalledWebApp()) {
+      $('loginStatus').textContent = 'Átirányítás a biztonságos Google-belépéshez…';
+      await signInWithRedirect(auth, provider);
+      return;
+    }
     await signInWithPopup(auth, provider);
     $('loginOverlay').classList.add('hidden');
+  } catch (e) {
+    $('loginStatus').textContent = ({
+      'auth/popup-closed-by-user': 'A belépési ablak bezárult.',
+      'auth/popup-blocked': 'A böngésző blokkolta a belépési ablakot. Próbáld újra, vagy nyisd meg a webappot Safariban.',
+      'auth/unauthorized-domain': 'Ez a domain nincs engedélyezve a Firebase Authentication beállításaiban.',
+      'auth/operation-not-supported-in-this-environment': 'Ebben a böngészőkörnyezetben nem támogatott a belépés. Nyisd meg a webappot Safariban.'
+    })[e.code] || ('Sikertelen belépés: ' + (e.code || e.message));
+    $('loginStatus').classList.add('error');
+  } finally {
+    b.disabled = false;
   }
-    catch (e) {
-      $('loginStatus').textContent = ({ 'auth/popup-closed-by-user': 'A belépési ablak bezárult.', 'auth/popup-blocked': 'A böngésző blokkolta a belépési ablakot.', 'auth/unauthorized-domain': 'Ez a domain nincs engedélyezve a Firebase-ben.' })[e.code] || ('Sikertelen belépés: ' + e.message);
-      $('loginStatus').classList.add('error');
-    }
-    finally {
-      b.disabled = false;
-    }
 });
 $('logoutButton').addEventListener('click', async () => {
   try {
@@ -1110,10 +1138,20 @@ async function loadScoreboard() {
     }
     if ($('statsCategories')) {
       const maxComp=Math.max(1,...componentTotals.map(c=>c.points));
-      $('statsCategories').innerHTML=componentTotals.map(c=>`<div class="stats-category"><div class="stats-category-label"><span>${safeText(c.label)}</span><b>${c.points} <small>pont</small></b></div><div class="stats-category-track"><i class="tone-${c.color}" style="width:${Math.min(100,c.points/maxComp*100)}%"></i></div></div>`).join('') || '<p class="stats-empty">Nincs pontozási adat.</p>';
+      const totalComponents=componentTotals.reduce((n,c)=>n+c.points,0);
+      const palette={red:'#ff3157',blue:'#328cff',gold:'#ffc247',green:'#24d6a0'};
+      let angle=0;
+      const stops=componentTotals.map(c=>{const share=totalComponents?c.points/totalComponents*360:0;const start=angle;angle+=share;return `${palette[c.color]} ${start}deg ${angle}deg`;}).join(', ');
+      $('statsCategories').innerHTML=`<div class="stats-donut-wrap"><div class="stats-donut" style="background:conic-gradient(${stops || '#24313d 0deg 360deg'})"><div class="stats-donut-center"><strong>${totalComponents}</strong><span>pont</span></div></div><div class="stats-donut-legend">${componentTotals.map(c=>`<div><i class="tone-${c.color}"></i><span>${safeText(c.label)}</span><b>${c.points}</b></div>`).join('')}</div></div><div class="stats-category-list">${componentTotals.map(c=>`<div class="stats-category"><div class="stats-category-label"><span>${safeText(c.label)}</span><b>${c.points} <small>pont</small></b></div><div class="stats-category-track"><i class="tone-${c.color}" style="width:${Math.min(100,c.points/maxComp*100)}%"></i></div></div>`).join('')}</div>`;
     }
     if ($('pointsChart')) {
-      $('pointsChart').innerHTML=events.length ? events.map((e,i)=>`<div class="stats-event-column" title="${safeText(e.name)}: ${e.points} pont"><div class="stats-event-value">${e.points}</div><div class="stats-event-bar ${e.sprint?'sprint':''}" style="height:${Math.max(4,e.points/maxEvent*100)}%"></div><span>${safeText((e.name||'').replace(/\s*(Grand Prix|Nagydíj)$/i,'').replace(/\s*[-–]\s*Sprint$/i,'').slice(0,9))}</span><small>${e.sprint?'SPR':'GP'}</small></div>`).join('') : '<p class="stats-empty">A pontozott események megjelennek, amint a Firestore tartalmaz ilyen adatokat.</p>';
+      const chartEvents=events.slice(-24);
+      const width=760,height=190,pad=24;
+      const maxChart=Math.max(1,...chartEvents.map(e=>e.points));
+      const pts=chartEvents.map((e,i)=>({x:pad+(chartEvents.length<=1?0:i*(width-pad*2)/(chartEvents.length-1)),y:height-pad-(e.points/maxChart)*(height-pad*2),e}));
+      const poly=pts.map(p=>`${p.x},${p.y}`).join(' ');
+      const area=`${pad},${height-pad} ${poly} ${width-pad},${height-pad}`;
+      $('pointsChart').innerHTML=chartEvents.length ? `<div class="stats-line-chart"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Pontok eseményenkénti alakulása"><defs><linearGradient id="statsLineFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#ff3157" stop-opacity=".38"/><stop offset="100%" stop-color="#ff3157" stop-opacity="0"/></linearGradient><linearGradient id="statsLineStroke"><stop offset="0%" stop-color="#ff3157"/><stop offset="100%" stop-color="#ff8b43"/></linearGradient></defs>${[0,1,2,3].map(i=>`<line x1="${pad}" y1="${pad+i*(height-pad*2)/3}" x2="${width-pad}" y2="${pad+i*(height-pad*2)/3}" stroke="#263643" stroke-dasharray="3 5"/>`).join('')}<polygon points="${area}" fill="url(#statsLineFill)"/><polyline points="${poly}" fill="none" stroke="url(#statsLineStroke)" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>${pts.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="4" fill="${p.e.sprint?'#3f9bff':'#ff3157'}" stroke="#08121b" stroke-width="2"><title>${safeText(p.e.name)}: ${p.e.points} pont</title></circle>`).join('')}</svg></div><div class="stats-event-labels">${chartEvents.map(e=>`<span title="${safeText(e.name)}">${safeText((e.name||'').replace(/\s*(Grand Prix|Nagydíj)$/i,'').replace(/\s*[-–]\s*Sprint$/i,'').slice(0,8))}<small>${e.sprint?'SPR':'GP'}</small></span>`).join('')}</div>` : '<p class="stats-empty">A pontozott események megjelennek, amint a Firestore tartalmaz ilyen adatokat.</p>';
     }
     if ($('statsBestEvents')) {
       $('statsBestEvents').innerHTML=bestEventRows.length?bestEventRows.map((e,i)=>`<div class="stats-best-row"><span class="stats-best-index">${String(i+1).padStart(2,'0')}</span><div><strong>${safeText(e.name)}</strong><small>${safeText(e.player)} · ${e.sprint?'Sprint':'Nagydíj'}</small></div><b>${e.points}<small> pont</small></b></div>`).join(''):'<p class="stats-empty">Még nincs pontozott esemény.</p>';
