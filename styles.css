@@ -1028,3 +1028,51 @@ button {
 
 /* Statisztikai információs buborékok és tömör futamnézet */
 .stats-info{position:relative;display:inline-grid;place-items:center;width:15px;height:15px;margin-left:5px;padding:0;border:1px solid #6f8798;border-radius:50%;background:#132433;color:#b8cad8;font-size:10px;font-weight:800;line-height:1;cursor:help;vertical-align:middle}.stats-info:hover,.stats-info:focus-visible{color:#fff;border-color:#ff5269;outline:0}.stats-info::after{content:attr(data-tooltip);position:absolute;z-index:50;left:50%;bottom:calc(100% + 9px);width:220px;max-width:min(220px,75vw);padding:9px 11px;border:1px solid #354a5b;border-radius:8px;background:#101c28;color:#eaf1f7;font-size:11px;font-weight:500;line-height:1.45;text-align:left;white-space:normal;box-shadow:0 8px 25px #0009;opacity:0;visibility:hidden;transform:translate(-50%,4px);transition:opacity .15s ease,transform .15s ease;pointer-events:none}.stats-info:hover::after,.stats-info:focus-visible::after{opacity:1;visibility:visible;transform:translate(-50%,0)}.stats-detail-toggle{padding:6px 10px;border:1px solid #304452;border-radius:7px;background:#0d1a25;color:#cfe0ed;font-size:11px;cursor:pointer}.stats-detail-toggle:hover{border-color:#ff5269;color:#fff}.stats-detail-toggle span{margin-left:5px;color:#ff6579}.stats-event-detail-row.hidden{display:none}.stats-event-detail-row>td{padding:0 12px 12px!important;background:#08121b}.stats-event-detail-inner{max-width:520px;margin-left:auto;border:1px solid #203442;border-radius:9px;padding:8px 12px}.stats-event-player-table{min-width:0!important}.stats-event-player-table th,.stats-event-player-table td{padding:8px!important}.stats-kpi small .stats-info{font-size:9px}
+
+/* Futamonkénti statisztika – hivatalos eredmény + tippösszevetés */
+.stats-events-toolbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 0 16px;color:var(--muted,#9bb0c3)}
+.stats-events-toolbar label{display:flex;align-items:center;gap:8px;font-size:13px}
+.stats-events-toolbar #statsOfficialStatus{margin-left:auto;font-size:12px}
+.stats-official-events{display:grid;gap:10px}
+.stats-official-event{border:1px solid #203444;border-radius:13px;overflow:hidden;background:linear-gradient(110deg,#0b1721,#07111a)}
+.stats-official-summary{display:grid;width:100%;grid-template-columns:42px minmax(180px,1.45fr) 74px minmax(170px,1fr) minmax(150px,.85fr) 90px 78px 28px;gap:12px;align-items:center;text-align:left;padding:13px 15px;background:transparent;color:inherit;border:0;cursor:pointer}
+.stats-official-summary:hover,.stats-official-summary.expanded{background:rgba(34,66,88,.28)}
+.stats-official-round{display:grid;place-items:center;width:34px;height:34px;border-radius:9px;background:#132b3e;color:#dcecff;font-weight:800}
+.stats-official-name,.stats-official-fact{min-width:0;display:flex;flex-direction:column;gap:4px}
+.stats-official-name strong{font-size:14px;color:#f4f7fb}
+.stats-official-name small,.stats-official-fact small{font-size:11px;color:#91a9be}
+.stats-official-fact strong{font-size:12px;color:#e5edf5;white-space:normal}
+.stats-official-type{justify-self:start;border-radius:6px;padding:5px 8px;background:#1c3d61;color:#cfe5ff;font-size:10px;font-weight:800;text-transform:uppercase}
+.stats-official-type.sprint{background:#33276a;color:#e1d6ff}
+.stats-event-kpi{border-left:1px solid #1c3040;padding-left:10px}
+.stats-event-kpi strong{font-size:17px}
+.stats-official-chevron{font-size:24px;color:#a9c6df;transition:transform .18s ease;text-align:center}
+.stats-official-summary.expanded .stats-official-chevron{transform:rotate(180deg)}
+.stats-official-detail{padding:0 14px 14px;border-top:1px solid #1e3444}
+.stats-official-result-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:13px 0}
+.stats-official-result-cards>div{display:flex;flex-direction:column;gap:5px;padding:11px 13px;border:1px solid #20394a;border-radius:9px;background:#0d1b27}
+.stats-official-result-cards small{font-size:11px;color:#8fa8bd}
+.stats-official-result-cards strong{font-size:13px;color:#f4f7fb}
+.stats-official-table-wrap{width:100%;overflow-x:auto;border:1px solid #203545;border-radius:9px}
+.stats-prediction-table{min-width:970px;width:100%;border-collapse:separate;border-spacing:0}
+.stats-prediction-table thead th{text-align:center;background:#102435;color:#d8e7f4;border-bottom:1px solid #294356;padding:10px 9px;font-size:11px;white-space:nowrap}
+.stats-prediction-table thead tr:first-child th:nth-child(2){border-top:2px solid #ff3157}
+.stats-prediction-table thead tr:first-child th:nth-child(3){border-top:2px solid #38a0ff}
+.stats-prediction-table thead tr:first-child th:nth-child(4){border-top:2px solid #f4b73e}
+.stats-prediction-table tbody td{padding:10px 9px;border-bottom:1px solid #1c3040;text-align:center;font-size:12px;white-space:nowrap}
+.stats-prediction-table tbody tr:last-child td{border-bottom:0}
+.stats-prediction-table tbody td:first-child{text-align:left;font-weight:700}
+.stats-prediction-table tbody tr:nth-child(odd){background:rgba(20,41,57,.45)}
+.stats-prediction-table tbody tr:hover{background:rgba(34,72,98,.35)}
+.stats-prediction-table td small{display:block;margin-top:5px;font-size:10px}
+.stats-cell-status{min-width:90px}
+.stats-cell-points{color:#20d5a0}
+.stats-muted{color:#6f8598}
+.stats-result-pill{display:inline-flex;align-items:center;gap:3px;padding:3px 6px;border-radius:5px;font-size:10px;font-weight:800}
+.stats-result-pill.correct{background:rgba(27,205,145,.13);color:#26d7a0}
+.stats-result-pill.wrong{background:rgba(255,49,87,.13);color:#ff6b83}
+.stats-result-pill.muted{background:rgba(120,145,165,.12);color:#9cb0c1}
+.stats-total-cell{font-size:14px!important;font-weight:900;color:#fff}
+.stats-scoring-note{font-size:11px;line-height:1.5;color:#91a8ba;margin:12px 0 0}
+@media(max-width:1100px){.stats-official-summary{grid-template-columns:35px minmax(150px,1.5fr) 64px minmax(140px,1fr) minmax(130px,1fr) 24px}.stats-event-kpi{display:none}}
+@media(max-width:700px){.stats-official-summary{grid-template-columns:32px minmax(130px,1fr) 55px 24px;gap:8px;padding:11px}.stats-official-summary .stats-official-fact{display:none}.stats-official-name strong{font-size:12px}.stats-official-result-cards{grid-template-columns:1fr}.stats-events-toolbar #statsOfficialStatus{width:100%;margin-left:0}}
