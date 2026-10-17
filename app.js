@@ -1160,7 +1160,7 @@ function renderStatsDetail() {
     $('statsCompareA')?.addEventListener('change',update);$('statsCompareB')?.addEventListener('change',update);update();
   }
 }
-document.getElementById('statsSectionTabs')?.addEventListener('click', event=>{const button=event.target.closest('[data-stats-tab]');if(!button)return;activeStatsTab=button.dataset.statsTab;document.querySelectorAll('[data-stats-tab]').forEach(b=>{const active=b===button;b.classList.toggle('active',active);b.setAttribute('aria-selected',String(active));});renderStatsDetail();});
+document.addEventListener('click', event=>{const button=event.target.closest('#statsSectionTabs [data-stats-tab]');if(!button)return;event.preventDefault();activeStatsTab=button.dataset.statsTab;document.querySelectorAll('#statsSectionTabs [data-stats-tab]').forEach(b=>{const active=b===button;b.classList.toggle('active',active);b.setAttribute('aria-selected',String(active));});renderStatsDetail();});
 
 async function loadScoreboard() {
   const rankingStatus = $('rankingStatus');
