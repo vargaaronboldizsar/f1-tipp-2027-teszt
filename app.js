@@ -419,18 +419,51 @@ async function loadTipReferenceData() {
         return currentLabel && (prevLabel.includes(currentLabel) || currentLabel.includes(prevLabel));
       });
     if (!previousRace) throw new Error('Ehhez a pályához nincs 2025-ös megfelelő futam.');
-    const response = await fetch(`${API_BASE}/2025/${previousRace.round}/qualifying/?limit=100`);
-    if (!response.ok) throw new Error(`Időmérő API HTTP ${response.status}`);
-    const json = await response.json();
+    const [qualifyingResponse, ...practiceResponses] = await Promise.all([
+      fetch(`${API_BASE}/2025/${previousRace.round}/qualifying/?limit=100`),
+      fetch(`${API_BASE}/2025/${previousRace.round}/practice/1/?limit=100`).catch(() => null),
+      fetch(`${API_BASE}/2025/${previousRace.round}/practice/2/?limit=100`).catch(() => null),
+      fetch(`${API_BASE}/2025/${previousRace.round}/practice/3/?limit=100`).catch(() => null)
+    ]);
+    if (!qualifyingResponse?.ok) throw new Error(`Időmérő API HTTP ${qualifyingResponse?.status || 'hiba'}`);
+    const json = await qualifyingResponse.json();
     if (requestId !== tipReferenceRequest) return;
     const rows = json.MRData?.RaceTable?.Races?.[0]?.QualifyingResults || [];
     const pole = rows.find(x => Number(x.position) === 1);
     const time = pole?.Q3 || pole?.Q2 || pole?.Q1 || '';
     const label = pole?.Driver ? `${pole.Driver.givenName || ''} ${pole.Driver.familyName || ''}`.trim() : '—';
     const race = json.MRData?.RaceTable?.Races?.[0] || previousRace;
-    status.textContent = race ? `2025 · ${race.raceName || 'azonos forduló'} · hivatalos időmérőadat` : 'A tavalyi eseményhez nem találtam adatot.';
-    data.innerHTML = `<div class="panel" style="padding:12px"><small style="color:var(--muted)">Tavalyi pole</small><strong style="display:block;margin-top:6px">${safeText(label)}</strong></div><div class="panel" style="padding:12px"><small style="color:var(--muted)">Pole-idő</small><strong style="display:block;margin-top:6px">${safeText(time || 'Nincs adat')}</strong></div><div class="panel" style="padding:12px"><small style="color:var(--muted)">Időmérős pilóták</small><strong style="display:block;margin-top:6px">${rows.length || '—'}</strong></div>`;
-    if (warning && time) warning.dataset.referenceMs = String(tipTimeToMs(time) || '');
+
+    // A szabadedzés-idők külön session endpointokból jönnek. Sprintes hétvégén
+    // jellemzően csak az FP1 érhető el; a hiányzó session nem akadályozza a panelt.
+    const practicePayloads = await Promise.all(practiceResponses.map(async response => {
+      if (!response?.ok) return [];
+      try {
+        const payload = await response.json();
+        return payload.MRData?.RaceTable?.Races?.[0]?.PracticeResults || [];
+      } catch (_) { return []; }
+    }));
+    const practiceRows = practicePayloads.flat().map(row => ({
+      ...row,
+      _time: typeof row.time === 'string' ? row.time : (row.Time?.time || row.FastestLap?.Time?.time || '')
+    })).filter(row => tipTimeToMs(row._time) !== null).sort((a, b) => tipTimeToMs(a._time) - tipTimeToMs(b._time));
+    const bestPractice = practiceRows[0] || null;
+    const practiceDriver = bestPractice?.Driver ? `${bestPractice.Driver.givenName || ''} ${bestPractice.Driver.familyName || ''}`.trim() : '—';
+    const poleMs = tipTimeToMs(time);
+    const practiceMs = tipTimeToMs(bestPractice?._time);
+    let deltaHtml = '<span style="color:var(--muted)">Szabadedzés-összehasonlítás nem érhető el.</span>';
+    if (poleMs !== null && practiceMs !== null) {
+      const deltaMs = poleMs - practiceMs;
+      const absSeconds = Math.abs(deltaMs) / 1000;
+      const tenths = absSeconds * 10;
+      const pct = poleMs ? absSeconds / poleMs * 100 : 0;
+      const direction = deltaMs > 0 ? 'A pole-idő gyorsabb' : deltaMs < 0 ? 'A szabadedzés volt gyorsabb' : 'Azonos idő';
+      const sign = deltaMs > 0 ? '−' : deltaMs < 0 ? '+' : '±';
+      deltaHtml = `<div style="margin-top:10px"><small style="color:var(--muted)">${direction} a legjobb szabadedzéshez képest</small><strong style="display:block;margin-top:5px">${sign}${absSeconds.toFixed(3).replace('.', ',')} mp</strong><small style="display:block;margin-top:4px;color:var(--muted)">${tenths.toFixed(1).replace('.', ',')} tizedmásodperc · ${pct.toFixed(2).replace('.', ',')}%</small></div>`;
+    }
+    status.textContent = race ? `2025 · ${race.raceName || 'azonos forduló'} · hivatalos időmérő- és szabadedzésadatok` : 'A tavalyi eseményhez nem találtam adatot.';
+    data.innerHTML = `<div class="panel" style="padding:12px"><small style="color:var(--muted)">Tavalyi pole</small><strong style="display:block;margin-top:6px">${safeText(label)}</strong></div><div class="panel" style="padding:12px"><small style="color:var(--muted)">Pole-idő</small><strong style="display:block;margin-top:6px">${safeText(time || 'Nincs adat')}</strong></div><div class="panel" style="padding:12px"><small style="color:var(--muted)">Legjobb szabadedzés</small><strong style="display:block;margin-top:6px">${safeText(bestPractice?._time || 'Nincs adat')}</strong><small style="display:block;margin-top:4px;color:var(--muted)">${safeText(practiceDriver)}</small>${deltaHtml}</div>`;
+    if (warning && time) warning.dataset.referenceMs = String(poleMs || '');
     updateTipPredictionWarning();
   } catch (error) {
     if (requestId !== tipReferenceRequest) return;
