@@ -407,7 +407,7 @@ async function loadTipReferenceData() {
   const circuitId = option.dataset.circuitId || '';
   // A 2025-ös történeti eredmények lezártak: böngészőben tartósan cache-eljük őket,
   // így ugyanazt a versenyt nem kérjük le újra minden oldalnyitáskor.
-  const referenceCacheKey = `apex-tip-reference-v3-2025-${circuitId || normalizeDriverText(option.dataset.raceName || option.textContent)}`;
+  const referenceCacheKey = `apex-tip-reference-v4-2025-${circuitId || normalizeDriverText(option.dataset.raceName || option.textContent)}`;
   try {
     const cachedRaw = localStorage.getItem(referenceCacheKey);
     if (cachedRaw) {
@@ -453,8 +453,8 @@ async function loadTipReferenceData() {
     try {
       const openBase = 'https://api.openf1.org/v1';
       const [meetingsRes, sessionsRes] = await Promise.all([
-        fetch(`${openBase}/meetings?year=2025`),
-        fetch(`${openBase}/sessions?year=2025`)
+        fetch(`${openBase}/meetings?year=2025&limit=1000`),
+        fetch(`${openBase}/sessions?year=2025&limit=1000`)
       ]);
       if (!meetingsRes.ok || !sessionsRes.ok) throw new Error('OpenF1 session/meeting API nem elérhető');
       const meetings = await meetingsRes.json();
@@ -503,6 +503,7 @@ async function loadTipReferenceData() {
     const best = practiceRows[0];
     const bestTime = best?._time || '';
     const bestName = best?._name || '—';
+    const practiceDiagnostic = bestTime ? '' : 'OpenF1: nem érkezett használható szabadedzés-köridő. Ellenőrizd a meeting/session/laps API-választ.';
     const poleMs = tipTimeToMs(poleTime), practiceMs = tipTimeToMs(bestTime);
     let deltaHtml = '<strong style="display:block;margin-top:6px">Nincs összehasonlítható adat</strong>';
     if (poleMs !== null && practiceMs !== null) {
@@ -512,7 +513,7 @@ async function loadTipReferenceData() {
       deltaHtml = `<strong style="display:block;margin-top:6px">${deltaMs > 0 ? '−' : deltaMs < 0 ? '+' : '±'}${(Math.abs(deltaMs)/1000).toFixed(3)} mp</strong><small>${(Math.abs(deltaMs)/100).toFixed(1)} tized · ${pct.toFixed(2)}%</small><small style="display:block;margin-top:5px">${relation}</small>`;
     }
     status.textContent = `2025 · ${previousRace.raceName || option.textContent} · időmérő: Jolpica · szabadedzés: OpenF1`; 
-    data.innerHTML = `<div class="panel" style="padding:12px"><small style="color:var(--muted)">Tavalyi pole-pilóta</small><strong style="display:block;margin-top:6px">${safeText(poleName)}</strong></div><div class="panel" style="padding:12px"><small style="color:var(--muted)">Hivatalos pole-idő</small><strong style="display:block;margin-top:6px">${safeText(poleTime || 'Nincs adat')}</strong></div><div class="panel" style="padding:12px"><small style="color:var(--muted)">Legjobb szabadedzés (${practiceLabel || 'FP'})</small><strong style="display:block;margin-top:6px">${safeText(bestTime || 'Nincs adat')}</strong><small>${safeText(bestName)}</small></div><div class="panel" style="padding:12px"><small style="color:var(--muted)">Pole és szabadedzés különbsége</small>${deltaHtml}</div>`;
+    data.innerHTML = `<div class="panel" style="padding:12px"><small style="color:var(--muted)">Tavalyi pole-pilóta</small><strong style="display:block;margin-top:6px">${safeText(poleName)}</strong></div><div class="panel" style="padding:12px"><small style="color:var(--muted)">Hivatalos pole-idő</small><strong style="display:block;margin-top:6px">${safeText(poleTime || 'Nincs adat')}</strong></div><div class="panel" style="padding:12px"><small style="color:var(--muted)">Legjobb szabadedzés (${practiceLabel || 'FP'})</small><strong style="display:block;margin-top:6px">${safeText(bestTime || 'Nincs adat')}</strong><small>${safeText(bestName)}</small>${practiceDiagnostic ? `<small style="display:block;margin-top:6px;color:var(--muted)">${safeText(practiceDiagnostic)}</small>` : ''}</div><div class="panel" style="padding:12px"><small style="color:var(--muted)">Pole és szabadedzés különbsége</small>${deltaHtml}</div>`;
     if (warning && poleTime) warning.dataset.referenceMs = String(poleMs || '');
     // Csak akkor cache-eljük a teljes blokkot, ha a szabadedzés valóban betöltődött.
     // A korábbi verzió a hibás/üres FP-eredményt is eltárolta, ezért az örökre Nincs adatként jelent meg.
