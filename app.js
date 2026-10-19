@@ -396,6 +396,97 @@ function updateTipPredictionWarning() {
     target.style.color = 'var(--muted)';
   }
 }
+const TIP_HISTORY_CACHE_VERSION = 1;
+const TIP_HISTORY_CACHE_COLLECTION = 'historicalRaceData';
+const OPENF1 = 'https://api.openf1.org/v1';
+
+function openF1LapTimeToMs(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? Math.round(n * 1000) : null;
+}
+function msToTipTime(ms) {
+  if (!Number.isFinite(ms) || ms <= 0) return '';
+  const minutes = Math.floor(ms / 60000);
+  const seconds = Math.floor((ms % 60000) / 1000);
+  const millis = ms % 1000;
+  return `${minutes ? `${minutes}:` : ''}${String(seconds).padStart(2, '0')}.${String(millis).padStart(3, '0')}`;
+}
+async function fetchOpenF1PracticeBest(previousRace, circuitId) {
+  const response = await fetch(`${OPENF1}/sessions?year=2025`);
+  if (!response.ok) throw new Error(`OpenF1 sessions HTTP ${response.status}`);
+  const sessions = await response.json();
+  const raceName = String(previousRace?.raceName || '').toLowerCase();
+  const circuitName = String(previousRace?.Circuit?.circuitName || '').toLowerCase();
+  const locality = String(previousRace?.Circuit?.Location?.locality || '').toLowerCase();
+  const country = String(previousRace?.Circuit?.Location?.country || '').toLowerCase();
+  const normalize = value => String(value || '').toLowerCase().replace(/grand prix|formula 1|\bthe\b|\s+/g, ' ').trim();
+  const meetingCandidates = sessions.filter(x => /practice [123]/i.test(x.session_name || ''));
+  let meetings = meetingCandidates.filter(x => {
+    const text = normalize(`${x.meeting_name || ''} ${x.circuit_short_name || ''} ${x.location || ''} ${x.country_name || ''}`);
+    const tokens = [circuitId, locality, circuitName].map(normalize).filter(t => t && t.length > 3);
+    return tokens.some(t => text.includes(t) || t.includes(normalize(x.circuit_short_name)) && normalize(x.circuit_short_name).length > 3);
+  });
+  if (!meetings.length) {
+    const raceTokens = [raceName, locality, country].map(normalize).filter(t => t && t.length > 3);
+    meetings = meetingCandidates.filter(x => {
+      const text = normalize(`${x.meeting_name || ''} ${x.circuit_short_name || ''} ${x.location || ''} ${x.country_name || ''}`);
+      return raceTokens.some(t => text.includes(t) || t.includes(text));
+    });
+  }
+  const rank = x => /practice 3/i.test(x.session_name) ? 3 : /practice 2/i.test(x.session_name) ? 2 : 1;
+  meetings.sort((a,b) => rank(b)-rank(a));
+  for (const session of meetings) {
+    try {
+      const [lapsRes, driversRes] = await Promise.all([
+        fetch(`${OPENF1}/laps?session_key=${session.session_key}&limit=10000`),
+        fetch(`${OPENF1}/drivers?session_key=${session.session_key}&limit=1000`)
+      ]);
+      if (!lapsRes.ok || !driversRes.ok) continue;
+      const [laps, drivers] = await Promise.all([lapsRes.json(), driversRes.json()]);
+      const driverMap = new Map(drivers.map(d => [Number(d.driver_number), `${d.first_name || ''} ${d.last_name || ''}`.trim()]));
+      const best = laps.filter(l => !l.is_pit_out_lap && openF1LapTimeToMs(l.lap_duration))
+        .sort((a,b) => openF1LapTimeToMs(a.lap_duration)-openF1LapTimeToMs(b.lap_duration))[0];
+      if (best) return {
+        bestTime: msToTipTime(openF1LapTimeToMs(best.lap_duration)),
+        bestName: driverMap.get(Number(best.driver_number)) || `#${best.driver_number}`,
+        practiceLabel: session.session_name || 'Practice',
+        sessionName: session.session_name || '',
+        sessionKey: session.session_key,
+        meetingName: session.meeting_name || '',
+        source: 'OpenF1',
+        cachedAt: new Date().toISOString(),
+        cacheVersion: TIP_HISTORY_CACHE_VERSION
+      };
+    } catch (e) { console.warn('OpenF1 szabadedzés lekérése sikertelen:', e); }
+  }
+  throw new Error('Az OpenF1 nem adott vissza használható szabadedzés-kört ehhez a pályához.');
+}
+async function getCachedPracticeData(cacheKey, previousRace, circuitId) {
+  const cacheRef = doc(db, TIP_HISTORY_CACHE_COLLECTION, cacheKey);
+  try {
+    const snapshot = await getDoc(cacheRef);
+    const saved = snapshot.exists() ? snapshot.data() : null;
+    if (saved?.cacheVersion === TIP_HISTORY_CACHE_VERSION && saved?.practice?.bestTime) return saved.practice;
+  } catch (e) { console.warn('Firestore történeti cache olvasása nem sikerült:', e); }
+  const practice = await fetchOpenF1PracticeBest(previousRace, circuitId);
+  // Történeti adat nem változik: egyszer letöltjük és eltesszük Firestore-ba.
+  // A mentéshez a felhasználónak be kell jelentkeznie, és a Rules-nak engednie kell
+  // a historicalRaceData dokumentum írását. A sikertelen mentés nem akadályozza a megjelenítést.
+  if (currentUser) {
+    try {
+      await setDoc(cacheRef, {
+        season: 2025,
+        circuitId: circuitId || previousRace?.Circuit?.circuitId || '',
+        raceName: previousRace?.raceName || '',
+        pole: null,
+        practice,
+        updatedAt: serverTimestamp(),
+        cacheVersion: TIP_HISTORY_CACHE_VERSION
+      }, { merge: true });
+    } catch (e) { console.warn('Firestore történeti cache mentése nem sikerült; ellenőrizd a Rules szabályokat:', e); }
+  }
+  return practice;
+}
 async function loadTipReferenceData() {
   const option = $('tipRaceSelect')?.selectedOptions?.[0];
   const status = $('tipReferenceStatus'); const data = $('tipReferenceData'); const warning = $('tipPredictionWarning');
@@ -404,25 +495,8 @@ async function loadTipReferenceData() {
   status.textContent = 'Tavalyi időmérő- és szabadedzésadatok betöltése…'; data.innerHTML = '';
   if (warning) { warning.textContent = ''; delete warning.dataset.referenceMs; }
   loadTipWeekendWeather(option, requestId).catch(err => console.warn('Hétvégi időjárás betöltése sikertelen:', err));
-  const circuitId = option.dataset.circuitId || '';
-  // A 2025-ös történeti eredmények lezártak: böngészőben tartósan cache-eljük őket,
-  // így ugyanazt a versenyt nem kérjük le újra minden oldalnyitáskor.
-  const referenceCacheKey = `apex-tip-reference-v4-2025-${circuitId || normalizeDriverText(option.dataset.raceName || option.textContent)}`;
   try {
-    const cachedRaw = localStorage.getItem(referenceCacheKey);
-    if (cachedRaw) {
-      const cached = JSON.parse(cachedRaw);
-      if (cached?.status && cached?.html) {
-        if (requestId !== tipReferenceRequest) return;
-        status.textContent = `${cached.status} · gyorsítótárból`;
-        data.innerHTML = cached.html;
-        if (warning && cached.referenceMs) warning.dataset.referenceMs = String(cached.referenceMs);
-        updateTipPredictionWarning();
-        return;
-      }
-    }
-  } catch (cacheError) { console.info('A DATA CHECK cache nem olvasható, friss API-lekérés következik.', cacheError); }
-  try {
+    const circuitId = option.dataset.circuitId || '';
     const scheduleRes = await fetch(`${API_BASE}/2025/races/?limit=100`);
     if (!scheduleRes.ok) throw new Error(`2025-ös versenynaptár HTTP ${scheduleRes.status}`);
     const scheduleJson = await scheduleRes.json();
@@ -434,11 +508,10 @@ async function loadTipReferenceData() {
     }
     if (!previousRace) throw new Error(`Nem találtam megfelelő 2025-ös futamot a(z) ${option.textContent} eseményhez.`);
     const round = previousRace.round;
-    const [qualRes, p3Res, p2Res, p1Res] = await Promise.all([
+    const cacheKey = `2025-${previousRace.Circuit?.circuitId || circuitId || round}`;
+    const [qualRes, practiceResult] = await Promise.all([
       fetch(`${API_BASE}/2025/${round}/qualifying/?limit=100`),
-      fetch(`${API_BASE}/2025/${round}/practice/3/?limit=100`),
-      fetch(`${API_BASE}/2025/${round}/practice/2/?limit=100`),
-      fetch(`${API_BASE}/2025/${round}/practice/1/?limit=100`)
+      getCachedPracticeData(cacheKey, previousRace, circuitId)
     ]);
     if (!qualRes.ok) throw new Error(`Időmérő API HTTP ${qualRes.status}`);
     const qualJson = await qualRes.json();
@@ -447,63 +520,13 @@ async function loadTipReferenceData() {
     const pole = qualRows.find(x => Number(x.position) === 1);
     const poleTime = pole?.Q3 || pole?.Q2 || pole?.Q1 || '';
     const poleName = pole?.Driver ? `${pole.Driver.givenName || ''} ${pole.Driver.familyName || ''}`.trim() : '—';
-    // A Jolpica/Ergast-kompatibilis API nem szolgáltat megbízható szabadedzés-eredményeket.
-    // A szabadedzés legjobb körét ezért az OpenF1 történeti session + laps + drivers adataiból számoljuk.
-    let practiceRows = [], practiceLabel = '', practiceSource = 'OpenF1';
-    try {
-      const openBase = 'https://api.openf1.org/v1';
-      const [meetingsRes, sessionsRes] = await Promise.all([
-        fetch(`${openBase}/meetings?year=2025&limit=1000`),
-        fetch(`${openBase}/sessions?year=2025&limit=1000`)
-      ]);
-      if (!meetingsRes.ok || !sessionsRes.ok) throw new Error('OpenF1 session/meeting API nem elérhető');
-      const meetings = await meetingsRes.json();
-      const sessions = await sessionsRes.json();
-      const location = normalizeDriverText(previousRace.Circuit?.Location?.locality || '');
-      const country = normalizeDriverText(previousRace.Circuit?.Location?.country || '');
-      const circuitName = normalizeDriverText(previousRace.Circuit?.circuitName || '');
-      const norm = v => normalizeDriverText(v).replace(/\b(circuit|international|grand prix|formula 1|f1)\b/g, '').trim();
-      let meeting = meetings.find(m => {
-        const ml = norm(m.location || ''); const ms = norm(m.circuit_short_name || '');
-        const mn = norm(m.meeting_name || ''); const mc = norm(m.meeting_official_name || '');
-        const race = norm(previousRace.raceName).replace(/\bgrand prix\b/g, '').trim();
-        return (location && (ml === norm(location) || (ml && norm(location).includes(ml)) || (ml && ml.includes(norm(location)))))
-          || (ms && norm(circuitName).includes(ms))
-          || (race && (mn.includes(race) || race.includes(mn) || mc.includes(race)));
-      });
-      if (!meeting && country) meeting = meetings.find(m => norm(m.country_name) === country && norm(m.meeting_name).includes(norm(previousRace.raceName).replace(/\bgrand prix\b/g,'')));
-      if (!meeting && country) {
-        const candidates = meetings.filter(m => norm(m.country_name) === country);
-        if (candidates.length === 1) meeting = candidates[0];
-      }
-      if (meeting) {
-        const practiceSessions = sessions.filter(x => Number(x.meeting_key) === Number(meeting.meeting_key) && /^Practice [123]$/.test(x.session_name || '')).sort((a,b) => Number((b.session_name||'').slice(-1)) - Number((a.session_name||'').slice(-1)));
-        for (const session of practiceSessions) {
-          const [lapsRes, driversRes] = await Promise.all([
-            fetch(`${openBase}/laps?session_key=${session.session_key}`),
-            fetch(`${openBase}/drivers?session_key=${session.session_key}`)
-          ]);
-          if (!lapsRes.ok || !driversRes.ok) continue;
-          const [laps, sessionDrivers] = await Promise.all([lapsRes.json(), driversRes.json()]);
-          const driverMap = new Map(sessionDrivers.map(d => [Number(d.driver_number), `${d.first_name || ''} ${d.last_name || ''}`.trim()]));
-          const bestByDriver = new Map();
-          for (const lap of laps) {
-            const duration = Number(lap.lap_duration);
-            if (!Number.isFinite(duration) || duration <= 0 || lap.is_pit_out_lap) continue;
-            const no = Number(lap.driver_number);
-            if (!bestByDriver.has(no) || duration < bestByDriver.get(no)._seconds) bestByDriver.set(no, { _seconds: duration, _time: `${Math.floor(duration/60)}:${(duration%60).toFixed(3).padStart(6,'0')}`, _name: driverMap.get(no) || `#${no}` });
-          }
-          const bestSessionLap = Array.from(bestByDriver.values()).sort((a,b)=>a._seconds-b._seconds)[0];
-          if (bestSessionLap) { practiceRows = [bestSessionLap]; practiceLabel = session.session_name.replace('Practice','FP'); break; }
-        }
-      }
-    } catch (practiceError) {
-      console.warn('OpenF1 szabadedzésadat nem tölthető be:', practiceError);
+    if (currentUser && poleTime) {
+      try { await setDoc(doc(db, TIP_HISTORY_CACHE_COLLECTION, cacheKey), { season: 2025, circuitId: previousRace.Circuit?.circuitId || circuitId || '', raceName: previousRace.raceName || '', pole: { driver: poleName, time: poleTime }, updatedAt: serverTimestamp(), cacheVersion: TIP_HISTORY_CACHE_VERSION }, { merge: true }); }
+      catch (e) { console.warn('A pole-idő Firestore-mentése nem sikerült; ellenőrizd a Rules szabályokat:', e); }
     }
-    const best = practiceRows[0];
-    const bestTime = best?._time || '';
-    const bestName = best?._name || '—';
-    const practiceDiagnostic = bestTime ? '' : 'OpenF1: nem érkezett használható szabadedzés-köridő. Ellenőrizd a meeting/session/laps API-választ.';
+    const bestTime = practiceResult?.bestTime || '';
+    const bestName = practiceResult?.bestName || '—';
+    const practiceLabel = practiceResult?.practiceLabel || 'FP';
     const poleMs = tipTimeToMs(poleTime), practiceMs = tipTimeToMs(bestTime);
     let deltaHtml = '<strong style="display:block;margin-top:6px">Nincs összehasonlítható adat</strong>';
     if (poleMs !== null && practiceMs !== null) {
@@ -512,16 +535,9 @@ async function loadTipReferenceData() {
       const relation = deltaMs > 0 ? 'A szabadedzés volt gyorsabb' : deltaMs < 0 ? 'A pole-idő volt gyorsabb' : 'Azonos idő';
       deltaHtml = `<strong style="display:block;margin-top:6px">${deltaMs > 0 ? '−' : deltaMs < 0 ? '+' : '±'}${(Math.abs(deltaMs)/1000).toFixed(3)} mp</strong><small>${(Math.abs(deltaMs)/100).toFixed(1)} tized · ${pct.toFixed(2)}%</small><small style="display:block;margin-top:5px">${relation}</small>`;
     }
-    status.textContent = `2025 · ${previousRace.raceName || option.textContent} · időmérő: Jolpica · szabadedzés: OpenF1`; 
-    data.innerHTML = `<div class="panel" style="padding:12px"><small style="color:var(--muted)">Tavalyi pole-pilóta</small><strong style="display:block;margin-top:6px">${safeText(poleName)}</strong></div><div class="panel" style="padding:12px"><small style="color:var(--muted)">Hivatalos pole-idő</small><strong style="display:block;margin-top:6px">${safeText(poleTime || 'Nincs adat')}</strong></div><div class="panel" style="padding:12px"><small style="color:var(--muted)">Legjobb szabadedzés (${practiceLabel || 'FP'})</small><strong style="display:block;margin-top:6px">${safeText(bestTime || 'Nincs adat')}</strong><small>${safeText(bestName)}</small>${practiceDiagnostic ? `<small style="display:block;margin-top:6px;color:var(--muted)">${safeText(practiceDiagnostic)}</small>` : ''}</div><div class="panel" style="padding:12px"><small style="color:var(--muted)">Pole és szabadedzés különbsége</small>${deltaHtml}</div>`;
+    status.textContent = `2025 · ${previousRace.raceName || option.textContent} · időmérő: Jolpica · szabadedzés: OpenF1${practiceResult?.cachedAt ? ' · Firestore cache' : ''}`;
+    data.innerHTML = `<div class="panel" style="padding:12px"><small style="color:var(--muted)">Tavalyi pole-pilóta</small><strong style="display:block;margin-top:6px">${safeText(poleName)}</strong></div><div class="panel" style="padding:12px"><small style="color:var(--muted)">Hivatalos pole-idő</small><strong style="display:block;margin-top:6px">${safeText(poleTime || 'Nincs adat')}</strong></div><div class="panel" style="padding:12px"><small style="color:var(--muted)">Legjobb szabadedzés (${safeText(practiceLabel)})</small><strong style="display:block;margin-top:6px">${safeText(bestTime || 'Nincs adat')}</strong><small>${safeText(bestName)}</small></div><div class="panel" style="padding:12px"><small style="color:var(--muted)">Pole és szabadedzés különbsége</small>${deltaHtml}</div>`;
     if (warning && poleTime) warning.dataset.referenceMs = String(poleMs || '');
-    // Csak akkor cache-eljük a teljes blokkot, ha a szabadedzés valóban betöltődött.
-    // A korábbi verzió a hibás/üres FP-eredményt is eltárolta, ezért az örökre Nincs adatként jelent meg.
-    if (bestTime && bestName !== '—') {
-      try {
-        localStorage.setItem(referenceCacheKey, JSON.stringify({ status: status.textContent, html: data.innerHTML, referenceMs: poleMs || null, savedAt: new Date().toISOString() }));
-      } catch (cacheError) { console.info('A DATA CHECK eredmény nem menthető cache-be.', cacheError); }
-    }
     updateTipPredictionWarning();
   } catch (error) {
     if (requestId !== tipReferenceRequest) return;
