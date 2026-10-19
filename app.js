@@ -525,10 +525,54 @@ async function loadTipReferenceData() {
     } catch (practiceError) {
       console.warn('OpenF1 szabadedzésadat nem tölthető be:', practiceError);
     }
-    const best = practiceRows[0];
-    const bestTime = best?._time || '';
-    const bestName = best?._name || '—';
-    const practiceDiagnostic = bestTime ? '' : 'OpenF1: nem érkezett használható szabadedzés-köridő. Ellenőrizd a meeting/session/laps API-választ.';
+    let best = practiceRows[0];
+    let bestTime = best?._time || '';
+    let bestName = best?._name || '—';
+    // Tartalék adatforrás: az előzőleg importált 2025-ös sessionök a Firestore-ban.
+    // Ezt akkor is megpróbáljuk, ha a böngészőből az OpenF1 laps/session_result API nem elérhető.
+    let firestorePracticeUsed = false;
+    if (!bestTime) {
+      try {
+        const historicalSnap = await getDocs(query(collection(db, 'historicalF1Sessions'), where('season', '==', 2025)));
+        const normalizePlace = value => normalizeDriverText(value).replace(/\b(circuit|international|grand prix|formula 1|f1|street circuit)\b/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+        const raceLocation = normalizePlace(previousRace.Circuit?.Location?.locality || '');
+        const raceCircuit = normalizePlace(previousRace.Circuit?.circuitName || '');
+        const raceCountry = normalizePlace(previousRace.Circuit?.Location?.country || '');
+        const historical = historicalSnap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }))
+          .filter(row => ['FP1', 'FP2', 'FP3'].includes(row.sessionType) && Array.isArray(row.results) && row.results.length)
+          .map(row => {
+            const rowLocation = normalizePlace(row.location || '');
+            const rowCircuit = normalizePlace(row.circuitShortName || '');
+            const rowCountry = normalizePlace(row.countryName || '');
+            let matchScore = 0;
+            if (raceLocation && rowLocation && raceLocation === rowLocation) matchScore = 100;
+            else if (raceLocation && rowLocation && (raceLocation.includes(rowLocation) || rowLocation.includes(raceLocation))) matchScore = 80;
+            else if (raceCircuit && rowCircuit && (raceCircuit.includes(rowCircuit) || rowCircuit.includes(raceCircuit))) matchScore = 70;
+            else if (raceCountry && rowCountry && raceCountry === rowCountry && raceLocation && rowLocation && (raceLocation.includes(rowLocation) || rowLocation.includes(raceLocation))) matchScore = 60;
+            return { ...row, _matchScore: matchScore };
+          })
+          .filter(row => row._matchScore > 0)
+          .sort((a, b) => b._matchScore - a._matchScore || ({ FP3: 3, FP2: 2, FP1: 1 }[b.sessionType] - { FP3: 3, FP2: 2, FP1: 1 }[a.sessionType]));
+        const selectedSession = historical.find(row => row.results.some(result => Number(result.bestLapSeconds) > 0));
+        if (selectedSession) {
+          const fastest = selectedSession.results
+            .filter(result => Number.isFinite(Number(result.bestLapSeconds)) && Number(result.bestLapSeconds) > 0)
+            .sort((a, b) => Number(a.bestLapSeconds) - Number(b.bestLapSeconds))[0];
+          if (fastest) {
+            const seconds = Number(fastest.bestLapSeconds);
+            best = { _seconds: seconds, _time: `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(3).padStart(6, '0')}`, _name: fastest.driverName || fastest.driverAcronym || (fastest.driverNumber ? `#${fastest.driverNumber}` : 'Ismeretlen pilóta') };
+            bestTime = best._time;
+            bestName = best._name;
+            practiceLabel = selectedSession.sessionType;
+            practiceSource = 'Firestore';
+            firestorePracticeUsed = true;
+          }
+        }
+      } catch (firestoreError) {
+        console.warn('A Firestore-ba importált történeti szabadedzésadat nem olvasható:', firestoreError);
+      }
+    }
+    const practiceDiagnostic = bestTime ? '' : 'Nem érkezett használható szabadedzés-köridő sem az OpenF1 API-ból, sem a historicalF1Sessions Firestore-gyűjteményből.';
     const poleMs = tipTimeToMs(poleTime), practiceMs = tipTimeToMs(bestTime);
     let deltaHtml = '<strong style="display:block;margin-top:6px">Nincs összehasonlítható adat</strong>';
     if (poleMs !== null && practiceMs !== null) {
@@ -537,7 +581,7 @@ async function loadTipReferenceData() {
       const relation = deltaMs > 0 ? 'A szabadedzés volt gyorsabb' : deltaMs < 0 ? 'A pole-idő volt gyorsabb' : 'Azonos idő';
       deltaHtml = `<strong style="display:block;margin-top:6px">${deltaMs > 0 ? '−' : deltaMs < 0 ? '+' : '±'}${(Math.abs(deltaMs)/1000).toFixed(3)} mp</strong><small>${(Math.abs(deltaMs)/100).toFixed(1)} tized · ${pct.toFixed(2)}%</small><small style="display:block;margin-top:5px">${relation}</small>`;
     }
-    status.textContent = `2025 · ${previousRace.raceName || option.textContent} · időmérő: Jolpica · szabadedzés: OpenF1`; 
+    status.textContent = `2025 · ${previousRace.raceName || option.textContent} · időmérő: Jolpica · szabadedzés: ${firestorePracticeUsed ? 'Firestore' : practiceSource}`; 
     data.innerHTML = `<div class="panel" style="padding:12px"><small style="color:var(--muted)">Tavalyi pole-pilóta</small><strong style="display:block;margin-top:6px">${safeText(poleName)}</strong></div><div class="panel" style="padding:12px"><small style="color:var(--muted)">Hivatalos pole-idő</small><strong style="display:block;margin-top:6px">${safeText(poleTime || 'Nincs adat')}</strong></div><div class="panel" style="padding:12px"><small style="color:var(--muted)">Legjobb szabadedzés (${practiceLabel || 'FP'})</small><strong style="display:block;margin-top:6px">${safeText(bestTime || 'Nincs adat')}</strong><small>${safeText(bestName)}</small>${practiceDiagnostic ? `<small style="display:block;margin-top:6px;color:var(--muted)">${safeText(practiceDiagnostic)}</small>` : ''}</div><div class="panel" style="padding:12px"><small style="color:var(--muted)">Pole és szabadedzés különbsége</small>${deltaHtml}</div>`;
     if (warning && poleTime) warning.dataset.referenceMs = String(poleMs || '');
     // Csak akkor cache-eljük a teljes blokkot, ha a szabadedzés valóban betöltődött.
@@ -1535,98 +1579,43 @@ $('statsGroupSelect')?.addEventListener('change', async () => {
   }
 });
 
-const officialStatsPromises = new Map();
+let officialStatsPromise = null;
 const officialDriverName = d => d ? `${d.givenName || ''} ${d.familyName || ''}`.trim() : '—';
-function historicalDriverName(row) {
-  return row.driverName || row.fullName || row.driverAcronym || (row.driverNumber != null ? `#${row.driverNumber}` : 'Ismeretlen pilóta');
-}
-function historicalTime(seconds) {
-  const value = Number(seconds);
-  if (!Number.isFinite(value) || value <= 0) return '';
-  const minutes = Math.floor(value / 60);
-  return `${minutes ? `${minutes}:` : ''}${(value % 60).toFixed(3).padStart(6, '0')}`;
-}
-async function loadOfficialStatsData(requestedSeason = Number($('statsEventSeason')?.value || 2026)) {
-  const season = Number(requestedSeason) === 2025 ? 2025 : 2026;
-  if (officialStatsPromises.has(season)) return officialStatsPromises.get(season);
-  const promise = (async () => {
+async function loadOfficialStatsData() {
+  if (officialStatsPromise) return officialStatsPromise;
+  officialStatsPromise = (async () => {
+    const season = 2026;
+    // A hivatalos eredményeket a GitHub Actions szinkronizálja a Firestore-ba.
+    // A kliens nem hívja közvetlenül a Jolpica API-t statisztikamegnyitáskor.
+    const scheduleSnap = await getDoc(doc(db, 'officialSchedule', String(season)));
+    if (!scheduleSnap.exists()) {
+      throw new Error('A hivatalos versenynaptár még nincs eltárolva. Futtasd a GitHub Actions „Sync F1 official results” workflow-t.');
+    }
+    const scheduleData = scheduleSnap.data() || {};
+    const schedule = Array.isArray(scheduleData.events) ? scheduleData.events : [];
     const officialEvents = [];
-    if (season === 2025) {
-      // A 2025-ös sessioneredményeket az egyszeri import töltötte a historicalF1Sessions gyűjteménybe.
-      const historicalSnap = await getDocs(collection(db, 'historicalF1Sessions'));
-      const sessions = historicalSnap.docs.map(d => ({ id: d.id, ...(d.data() || {}) }))
-        .filter(s => Number(s.season) === 2025)
-        .sort((a, b) => String(a.dateStart || '').localeCompare(String(b.dateStart || '')));
-      if (!sessions.length) throw new Error('A historicalF1Sessions gyűjteményben nem találhatók 2025-ös adatok.');
-      const meetings = new Map();
-      for (const session of sessions) {
-        const meetingId = String(session.meetingKey ?? session.countryName ?? session.id);
-        if (!meetings.has(meetingId)) meetings.set(meetingId, { meetingId, sessions: [], first: session });
-        meetings.get(meetingId).sessions.push(session);
-      }
-      let round = 0;
-      for (const meeting of meetings.values()) {
-        round++;
-        const byType = Object.fromEntries(meeting.sessions.map(s => [String(s.sessionType || '').toUpperCase(), s]));
-        const base = meeting.first;
-        const country = base.countryName || base.meetingName || `Verseny ${round}`;
-        const circuitName = base.circuitShortName || base.location || '';
-        const date = String(base.dateStart || '').slice(0, 10);
-        const makeRows = session => (Array.isArray(session?.results) ? session.results : [])
-          .slice().sort((a, b) => Number(a.position ?? 999) - Number(b.position ?? 999))
-          .map(row => {
-            const fullName = historicalDriverName(row);
-            const bits = fullName.split(/\s+/);
-            return { position: row.position, Driver: { driverId: row.driverAcronym || String(row.driverNumber ?? fullName).toLowerCase(), code: row.driverAcronym || '', givenName: bits.slice(0, -1).join(' '), familyName: bits.slice(-1)[0] || fullName }, _source: row };
-          });
-        const makeEvent = (isSprint) => {
-          const qualifyingSession = byType[isSprint ? 'SQ' : 'Q'];
-          const resultSession = byType[isSprint ? 'S' : 'R'];
-          const qualifying = makeRows(qualifyingSession);
-          const results = makeRows(resultSession);
-          const poleRow = qualifying.find(row => Number(row.position) === 1) || null;
-          const winnerRow = results.find(row => Number(row.position) === 1) || null;
-          const poleSource = poleRow?._source || {};
-          const poleTime = historicalTime(poleSource.bestLapSeconds || (Array.isArray(poleSource.duration) ? Math.min(...poleSource.duration.map(Number).filter(n => Number.isFinite(n) && n > 0)) : poleSource.duration));
-          const driverNames = Object.fromEntries([...qualifying, ...results].map(row => [row.Driver.driverId, officialDriverName(row.Driver)]));
-          return {
-            key: isSprint ? `${round}-sprint` : String(round), round, sprint: isSprint,
-            raceName: country, circuitName, date, qualifying, results,
-            poleDriver: poleRow ? officialDriverName(poleRow.Driver) : '',
-            poleDriverId: poleRow?.Driver?.driverId || '', poleCode: poleRow?.Driver?.code || '', poleTime,
-            winner: winnerRow ? officialDriverName(winnerRow.Driver) : '',
-            winnerDriverId: winnerRow?.Driver?.driverId || '', winnerCode: winnerRow?.Driver?.code || '',
-            driverNames, apiError: '', historical: true
-          };
-        };
-        officialEvents.push(makeEvent(false));
-        if (byType.SQ || byType.S) officialEvents.push(makeEvent(true));
-      }
-    } else {
-      // A 2026-os hivatalos eredményeket a GitHub Actions szinkronizálja a Firestore-ba.
-      const scheduleSnap = await getDoc(doc(db, 'officialSchedule', String(season)));
-      if (!scheduleSnap.exists()) {
-        throw new Error('A hivatalos versenynaptár még nincs eltárolva. Futtasd a GitHub Actions „Sync F1 official results” workflow-t.');
-      }
-      const scheduleData = scheduleSnap.data() || {};
-      const schedule = Array.isArray(scheduleData.events) ? scheduleData.events : [];
-      for (const item of schedule) {
-        const resultSnap = await getDoc(doc(db, 'officialResults', String(item.key)));
-        const saved = resultSnap.exists() ? (resultSnap.data() || {}) : {};
-        const qualifying = Array.isArray(saved.qualifying) ? saved.qualifying : [];
-        const results = Array.isArray(saved.results) ? saved.results : [];
-        const q1 = qualifying.find(x => Number(x.position) === 1) || null;
-        const win = results.find(x => Number(x.position) === 1) || null;
-        officialEvents.push({
-          ...item, qualifying, results,
-          poleDriver: q1 ? officialDriverName(q1.Driver) : '', poleDriverId: q1?.Driver?.driverId || '',
-          poleCode: q1?.Driver?.code || '', poleTime: q1?.Q3 || q1?.SQ3 || q1?.Q2 || q1?.SQ2 || q1?.Q1 || q1?.SQ1 || '',
-          winner: win ? officialDriverName(win.Driver) : '', winnerDriverId: win?.Driver?.driverId || '',
-          winnerCode: win?.Driver?.code || '',
-          driverNames: Object.fromEntries([...qualifying, ...results].filter(x => x.Driver?.driverId).map(x => [x.Driver.driverId, officialDriverName(x.Driver)])),
-          apiError: saved.lastError || ''
-        });
-      }
+    for (const item of schedule) {
+      const resultSnap = await getDoc(doc(db, 'officialResults', String(item.key)));
+      const saved = resultSnap.exists() ? (resultSnap.data() || {}) : {};
+      const qualifying = Array.isArray(saved.qualifying) ? saved.qualifying : [];
+      const results = Array.isArray(saved.results) ? saved.results : [];
+      const q1 = qualifying.find(x => Number(x.position) === 1) || null;
+      const win = results.find(x => Number(x.position) === 1) || null;
+      const event = {
+        ...item,
+        qualifying,
+        results,
+        poleDriver: q1 ? officialDriverName(q1.Driver) : '',
+        poleDriverId: q1?.Driver?.driverId || '',
+        poleCode: q1?.Driver?.code || '',
+        poleTime: q1?.Q3 || q1?.SQ3 || q1?.Q2 || q1?.SQ2 || q1?.Q1 || q1?.SQ1 || '',
+        winner: win ? officialDriverName(win.Driver) : '',
+        winnerDriverId: win?.Driver?.driverId || '',
+        winnerCode: win?.Driver?.code || '',
+        driverNames: Object.fromEntries([...qualifying, ...results].filter(x => x.Driver?.driverId).map(x => [x.Driver.driverId, officialDriverName(x.Driver)])),
+        apiError: saved.lastError || ''
+      };
+      officialEvents.push(event);
     }
        const tipsByEvent = {};
     const selected = $('statsGroupSelect')?.value || 'personal';
@@ -1683,9 +1672,8 @@ async function loadOfficialStatsData(requestedSeason = Number($('statsEventSeaso
       }
     }
     return { officialEvents, tipsByEvent };
-  })().catch(error => { officialStatsPromises.delete(season); throw error; });
-  officialStatsPromises.set(season, promise);
-  return promise;
+  })().catch(error => { officialStatsPromise = null; throw error; });
+  return officialStatsPromise;
 }
 let activeStatsTab = 'overview';
 const statsEsc = value => safeText(String(value ?? '—'));
@@ -1809,16 +1797,15 @@ const components = [
   root.classList.remove('hidden');
   if(activeStatsTab==='overview'){root.classList.add('hidden');return;}
   if(activeStatsTab==='events'){
-    root.innerHTML = head('Futamonkénti eredmények','Hivatalos időmérő- és futameredmények, a játékosok mentett tippjei és a Firestore-ban tárolt pontok.') + '<div class="stats-events-toolbar"><label>Szezon <select id="statsEventSeason" class="stats-control"><option value="2026" selected>2026</option><option value="2025">2025</option></select></label><label>Típus <select id="statsEventType" class="stats-control"><option value="all">Összes esemény</option><option value="gp">Nagydíj</option><option value="sprint">Sprint</option></select></label><span id="statsOfficialStatus" role="status">Hivatalos eredmények betöltése…</span></div><div id="statsOfficialEvents" class="stats-official-events"><p class="stats-empty">Eseményadatok betöltése…</p></div>';
+    root.innerHTML = head('Futamonkénti eredmények','Hivatalos időmérő- és futameredmények, a játékosok mentett tippjei és a Firestore-ban tárolt pontok.') + '<div class="stats-events-toolbar"><label>Szezon <select id="statsEventSeason" class="stats-control"><option value="2026" selected>2026</option></select></label><label>Típus <select id="statsEventType" class="stats-control"><option value="all">Összes esemény</option><option value="gp">Nagydíj</option><option value="sprint">Sprint</option></select></label><span id="statsOfficialStatus" role="status">Hivatalos eredmények betöltése…</span></div><div id="statsOfficialEvents" class="stats-official-events"><p class="stats-empty">Eseményadatok betöltése…</p></div>';
     loadOfficialStatsData().then(({officialEvents,tipsByEvent})=>{
       if(!document.getElementById('statsOfficialEvents') || activeStatsTab!=='events') return;
       statsSnapshotData.officialEvents=officialEvents; statsSnapshotData.tipsByEvent=tipsByEvent;
-      const status=$('statsOfficialStatus'); if(status) { const tipCount=Object.values(tipsByEvent).reduce((n,a)=>n+a.length,0); const failed=officialEvents.filter(e=>!e.poleDriver&&!e.winner).length; status.textContent=`${Number($('statsEventSeason')?.value || 2026)===2025?'2025-ös történeti adatok: historicalF1Sessions':'Hivatalos F1-adatok: Firestore'}${failed?` · ${failed} esemény eredménye még nem érhető el`:''} · Betöltött tipprekordok: ${tipCount}${tipCount?'':' · más játékosok tippjeihez ellenőrizd a Firestore Rules jogosultságait'}`; }
-      let displayedOfficialEvents = officialEvents;
+      const status=$('statsOfficialStatus'); if(status) { const tipCount=Object.values(tipsByEvent).reduce((n,a)=>n+a.length,0); const failed=officialEvents.filter(e=>!e.poleDriver&&!e.winner).length; status.textContent=`Hivatalos F1-adatok: Firestore${failed?` · ${failed} esemény eredménye még nem érhető el`:''} · Betöltött tipprekordok: ${tipCount}${tipCount?'':' · más játékosok tippjeihez ellenőrizd a Firestore Rules jogosultságait'}`; }
       const renderEvents=()=>{
         const target=$('statsOfficialEvents'); if(!target)return;
         const type=$('statsEventType')?.value||'all';
-        const filtered=displayedOfficialEvents.filter(ev=>type==='all'||(type==='sprint'?ev.sprint:!ev.sprint));
+        const filtered=officialEvents.filter(ev=>type==='all'||(type==='sprint'?ev.sprint:!ev.sprint));
         target.innerHTML=filtered.map((ev,index)=>{
           const tipKey=ev.key; const tips=Object.values(tipsByEvent).flat();
           const eventScores=scores.filter(s=>String(s.raceId||s.scoreId)===tipKey || (ev.sprint && String(s.raceId||s.scoreId).endsWith('-sprint') && Number.parseInt(s.raceId||s.scoreId,10)===ev.round) || (!ev.sprint && String(s.raceId||s.scoreId)===String(ev.round)));
@@ -1890,26 +1877,6 @@ const components = [
         target.querySelectorAll('[data-official-event]').forEach(button=>button.addEventListener('click',()=>{const panel=document.getElementById(button.dataset.officialEvent);if(!panel)return;const opening=panel.classList.contains('hidden');panel.classList.toggle('hidden',!opening);button.classList.toggle('expanded',opening);button.setAttribute('aria-expanded',String(opening));}));
       };
       $('statsEventType')?.addEventListener('change',renderEvents);renderEvents();
-      $('statsEventSeason')?.addEventListener('change', async () => {
-        const target = $('statsOfficialEvents');
-        const status = $('statsOfficialStatus');
-        if (target) target.innerHTML = '<p class="stats-empty">A kiválasztott szezon adatainak betöltése…</p>';
-        if (status) status.textContent = 'Adatok betöltése…';
-        try {
-          const selectedSeason = Number($('statsEventSeason')?.value || 2026);
-          const loaded = await loadOfficialStatsData(selectedSeason);
-          if (!document.getElementById('statsOfficialEvents') || activeStatsTab !== 'events') return;
-          displayedOfficialEvents = loaded.officialEvents;
-          statsSnapshotData.officialEvents = loaded.officialEvents;
-          statsSnapshotData.tipsByEvent = loaded.tipsByEvent;
-          const failed = displayedOfficialEvents.filter(e => !e.poleDriver && !e.winner).length;
-          if (status) status.textContent = `${selectedSeason === 2025 ? '2025-ös történeti adatok: historicalF1Sessions' : 'Hivatalos F1-adatok: Firestore'} · ${displayedOfficialEvents.length} esemény${failed ? ` · ${failed} esemény eredménye még nem érhető el` : ''}`;
-          renderEvents();
-        } catch (error) {
-          if (target) target.innerHTML = `<p class="stats-empty">A szezon betöltése nem sikerült. ${statsEsc(error.message)}</p>`;
-          if (status) status.textContent = 'Adatbetöltési hiba';
-        }
-      });
     }).catch(error=>{const target=$('statsOfficialEvents');if(target)target.innerHTML=`<p class="stats-empty">A hivatalos F1-adatok most nem tölthetők be. ${statsEsc(error.message)}</p>`;const status=$('statsOfficialStatus');if(status)status.textContent='Adatbetöltési hiba';console.error('Hivatalos futameredmények:',error);});
   } else if(activeStatsTab==='categories'){
     const total=Math.max(1,scores.reduce((n,s)=>n+points(s),0));
@@ -1938,7 +1905,7 @@ async function loadScoreboard() {
     } else {
       statsGroupMemberUids = null;
     }
-    // Szezononkénti hivatalos eredménycache; frissítéskor az adatok újra betölthetők.
+    officialStatsPromise = null;
     // Tesztprojekt: ne olvassuk le a teljes /users gyűjteményt,
     // mert az privát profiladatokat tartalmaz. A tesztfelhasználók UID-jeit
     // explicit listából használjuk, és csak a scores alkollekciót kérjük le.
