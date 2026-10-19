@@ -404,8 +404,25 @@ async function loadTipReferenceData() {
   status.textContent = 'Tavalyi időmérő- és szabadedzésadatok betöltése…'; data.innerHTML = '';
   if (warning) { warning.textContent = ''; delete warning.dataset.referenceMs; }
   loadTipWeekendWeather(option, requestId).catch(err => console.warn('Hétvégi időjárás betöltése sikertelen:', err));
+  const circuitId = option.dataset.circuitId || '';
+  // A 2025-ös történeti eredmények lezártak: böngészőben tartósan cache-eljük őket,
+  // így ugyanazt a versenyt nem kérjük le újra minden oldalnyitáskor.
+  const referenceCacheKey = `apex-tip-reference-v2-2025-${circuitId || normalizeDriverText(option.dataset.raceName || option.textContent)}`;
   try {
-    const circuitId = option.dataset.circuitId || '';
+    const cachedRaw = localStorage.getItem(referenceCacheKey);
+    if (cachedRaw) {
+      const cached = JSON.parse(cachedRaw);
+      if (cached?.status && cached?.html) {
+        if (requestId !== tipReferenceRequest) return;
+        status.textContent = `${cached.status} · gyorsítótárból`;
+        data.innerHTML = cached.html;
+        if (warning && cached.referenceMs) warning.dataset.referenceMs = String(cached.referenceMs);
+        updateTipPredictionWarning();
+        return;
+      }
+    }
+  } catch (cacheError) { console.info('A DATA CHECK cache nem olvasható, friss API-lekérés következik.', cacheError); }
+  try {
     const scheduleRes = await fetch(`${API_BASE}/2025/races/?limit=100`);
     if (!scheduleRes.ok) throw new Error(`2025-ös versenynaptár HTTP ${scheduleRes.status}`);
     const scheduleJson = await scheduleRes.json();
@@ -430,20 +447,58 @@ async function loadTipReferenceData() {
     const pole = qualRows.find(x => Number(x.position) === 1);
     const poleTime = pole?.Q3 || pole?.Q2 || pole?.Q1 || '';
     const poleName = pole?.Driver ? `${pole.Driver.givenName || ''} ${pole.Driver.familyName || ''}`.trim() : '—';
-    let practiceRows = [], practiceLabel = '';
-    for (const [res, label] of [[p3Res,'FP3'],[p2Res,'FP2'],[p1Res,'FP1']]) {
-      if (!res.ok) continue;
-      try {
-        const j = await res.json();
-        const raceData = j.MRData?.RaceTable?.Races?.[0];
-        const rows = raceData?.Practice3Results || raceData?.Practice2Results || raceData?.Practice1Results || [];
-        const usable = rows.map(r => ({...r, _time: r.Time?.time || r.time || ''})).filter(r => r._time && tipTimeToMs(r._time) !== null).sort((x,y)=>tipTimeToMs(x._time)-tipTimeToMs(y._time));
-        if (usable.length) { practiceRows = usable; practiceLabel = label; break; }
-      } catch (e) { console.info(`${label} nem elérhető ehhez a futamhoz`, e); }
+    // A Jolpica/Ergast-kompatibilis API nem szolgáltat megbízható szabadedzés-eredményeket.
+    // A szabadedzés legjobb körét ezért az OpenF1 történeti session + laps + drivers adataiból számoljuk.
+    let practiceRows = [], practiceLabel = '', practiceSource = 'OpenF1';
+    try {
+      const openBase = 'https://api.openf1.org/v1';
+      const [meetingsRes, sessionsRes] = await Promise.all([
+        fetch(`${openBase}/meetings?year=2025`),
+        fetch(`${openBase}/sessions?year=2025`)
+      ]);
+      if (!meetingsRes.ok || !sessionsRes.ok) throw new Error('OpenF1 session/meeting API nem elérhető');
+      const meetings = await meetingsRes.json();
+      const sessions = await sessionsRes.json();
+      const location = normalizeDriverText(previousRace.Circuit?.Location?.locality || '');
+      const country = normalizeDriverText(previousRace.Circuit?.Location?.country || '');
+      const circuitName = normalizeDriverText(previousRace.Circuit?.circuitName || '');
+      const norm = v => normalizeDriverText(v).replace(/\b(circuit|international|grand prix|formula 1|f1)\b/g, '').trim();
+      let meeting = meetings.find(m => {
+        const ml = norm(m.location || ''); const ms = norm(m.circuit_short_name || '');
+        return location && (ml === norm(location) || (ml && norm(location).includes(ml)) || (ms && norm(circuitName).includes(ms)));
+      });
+      if (!meeting && country) meeting = meetings.find(m => norm(m.country_name) === country && norm(m.meeting_name).includes(norm(previousRace.raceName).replace(/\bgrand prix\b/g,'')));
+      if (!meeting && country) {
+        const candidates = meetings.filter(m => norm(m.country_name) === country);
+        if (candidates.length === 1) meeting = candidates[0];
+      }
+      if (meeting) {
+        const practiceSessions = sessions.filter(x => Number(x.meeting_key) === Number(meeting.meeting_key) && /^Practice [123]$/.test(x.session_name || '')).sort((a,b) => Number((b.session_name||'').slice(-1)) - Number((a.session_name||'').slice(-1)));
+        for (const session of practiceSessions) {
+          const [lapsRes, driversRes] = await Promise.all([
+            fetch(`${openBase}/laps?session_key=${session.session_key}`),
+            fetch(`${openBase}/drivers?session_key=${session.session_key}`)
+          ]);
+          if (!lapsRes.ok || !driversRes.ok) continue;
+          const [laps, sessionDrivers] = await Promise.all([lapsRes.json(), driversRes.json()]);
+          const driverMap = new Map(sessionDrivers.map(d => [Number(d.driver_number), `${d.first_name || ''} ${d.last_name || ''}`.trim()]));
+          const bestByDriver = new Map();
+          for (const lap of laps) {
+            const duration = Number(lap.lap_duration);
+            if (!Number.isFinite(duration) || duration <= 0 || lap.is_pit_out_lap) continue;
+            const no = Number(lap.driver_number);
+            if (!bestByDriver.has(no) || duration < bestByDriver.get(no)._seconds) bestByDriver.set(no, { _seconds: duration, _time: `${Math.floor(duration/60)}:${(duration%60).toFixed(3).padStart(6,'0')}`, _name: driverMap.get(no) || `#${no}` });
+          }
+          const bestSessionLap = Array.from(bestByDriver.values()).sort((a,b)=>a._seconds-b._seconds)[0];
+          if (bestSessionLap) { practiceRows = [bestSessionLap]; practiceLabel = session.session_name.replace('Practice','FP'); break; }
+        }
+      }
+    } catch (practiceError) {
+      console.warn('OpenF1 szabadedzésadat nem tölthető be:', practiceError);
     }
     const best = practiceRows[0];
     const bestTime = best?._time || '';
-    const bestName = best?.Driver ? `${best.Driver.givenName || ''} ${best.Driver.familyName || ''}`.trim() : '—';
+    const bestName = best?._name || '—';
     const poleMs = tipTimeToMs(poleTime), practiceMs = tipTimeToMs(bestTime);
     let deltaHtml = '<strong style="display:block;margin-top:6px">Nincs összehasonlítható adat</strong>';
     if (poleMs !== null && practiceMs !== null) {
@@ -452,9 +507,12 @@ async function loadTipReferenceData() {
       const relation = deltaMs > 0 ? 'A szabadedzés volt gyorsabb' : deltaMs < 0 ? 'A pole-idő volt gyorsabb' : 'Azonos idő';
       deltaHtml = `<strong style="display:block;margin-top:6px">${deltaMs > 0 ? '−' : deltaMs < 0 ? '+' : '±'}${(Math.abs(deltaMs)/1000).toFixed(3)} mp</strong><small>${(Math.abs(deltaMs)/100).toFixed(1)} tized · ${pct.toFixed(2)}%</small><small style="display:block;margin-top:5px">${relation}</small>`;
     }
-    status.textContent = `2025 · ${previousRace.raceName || option.textContent} · hivatalos Jolpica-adatok`;
+    status.textContent = `2025 · ${previousRace.raceName || option.textContent} · időmérő: Jolpica · szabadedzés: OpenF1`; 
     data.innerHTML = `<div class="panel" style="padding:12px"><small style="color:var(--muted)">Tavalyi pole-pilóta</small><strong style="display:block;margin-top:6px">${safeText(poleName)}</strong></div><div class="panel" style="padding:12px"><small style="color:var(--muted)">Hivatalos pole-idő</small><strong style="display:block;margin-top:6px">${safeText(poleTime || 'Nincs adat')}</strong></div><div class="panel" style="padding:12px"><small style="color:var(--muted)">Legjobb szabadedzés (${practiceLabel || 'FP'})</small><strong style="display:block;margin-top:6px">${safeText(bestTime || 'Nincs adat')}</strong><small>${safeText(bestName)}</small></div><div class="panel" style="padding:12px"><small style="color:var(--muted)">Pole és szabadedzés különbsége</small>${deltaHtml}</div>`;
     if (warning && poleTime) warning.dataset.referenceMs = String(poleMs || '');
+    try {
+      localStorage.setItem(referenceCacheKey, JSON.stringify({ status: status.textContent, html: data.innerHTML, referenceMs: poleMs || null, savedAt: new Date().toISOString() }));
+    } catch (cacheError) { console.info('A DATA CHECK eredmény nem menthető cache-be.', cacheError); }
     updateTipPredictionWarning();
   } catch (error) {
     if (requestId !== tipReferenceRequest) return;
@@ -782,7 +840,27 @@ $('tipRaceSelect').addEventListener('change', showRaceSchedule);
 $('tipRaceSelect').addEventListener('change', loadSavedTip);
 $('tipRaceSelect').addEventListener('change', updateTipLocks);
 $('tipRaceSelect').addEventListener('change', loadTipReferenceData);
-$('tipPoleTime').addEventListener('input', updateTipPredictionWarning);
+function formatPoleTimeAsTyped(raw) {
+  const original = String(raw || '').trim();
+  if (!original) return '';
+  // Ha a felhasználó már teljesen formázott időt ír be, a számjegyekből újraépítjük.
+  // A beírás közben automatikusan megjelenik a kettőspont és a tizedespont.
+  const digits = original.replace(/\D/g, '').slice(0, 6);
+  if (!digits) return '';
+  if (digits.length === 1) return digits;
+  if (digits.length === 2) return `${digits[0]}:${digits.slice(1)}`;
+  if (digits.length === 3) return `${digits[0]}:${digits.slice(1, 3)}`;
+  return `${digits[0]}:${digits.slice(1, 3)}.${digits.slice(3)}`;
+}
+$('tipPoleTime').addEventListener('input', event => {
+  const field = event.currentTarget;
+  const formatted = formatPoleTimeAsTyped(field.value);
+  if (field.value !== formatted) {
+    field.value = formatted;
+    try { field.setSelectionRange(field.value.length, field.value.length); } catch (_) {}
+  }
+  updateTipPredictionWarning();
+});
 $('tipPoleTime').addEventListener('blur', () => { $('tipPoleTime').value = normalizePoleTimeInput($('tipPoleTime').value); updateTipPredictionWarning(); });
 $('saveTipsButton').addEventListener('click', saveTips);
 setInterval(() => {
