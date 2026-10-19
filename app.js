@@ -499,9 +499,12 @@ async function loadTipWeekendWeather(option, requestId) {
     const idx = (daily.time || []).indexOf(date);
     const day = ['Vasárnap','Hétfő','Kedd','Szerda','Csütörtök','Péntek','Szombat'][new Date(`${date}T12:00:00Z`).getUTCDay()];
     if (idx < 0) return `<article class="tips-weather-day"><small>${day} · ${date.slice(5)}</small><strong>—</strong><p>Előrejelzés még nincs</p></article>`;
-    return `<article class="tips-weather-day"><small>${day} · ${date.slice(5)}</small><div class="tips-weather-icon">${weatherIcon(daily.weather_code?.[idx])}</div><strong>${Math.round(daily.temperature_2m_max[idx])}° / ${Math.round(daily.temperature_2m_min[idx])}°C</strong><p>Eső: ${daily.precipitation_probability_max?.[idx] ?? '—'}% · Szél: ${Math.round(daily.wind_speed_10m_max?.[idx] ?? 0)} km/h</p></article>`;
+    const eventDay = ['Péntek','Szombat','Vasárnap'][i];
+    const code = daily.weather_code?.[idx];
+    const desc = ({0:'Derült',1:'Többnyire derült',2:'Részben felhős',3:'Borult',45:'Ködös',48:'Zúzmarás köd',51:'Szitálás',53:'Szitálás',55:'Erős szitálás',61:'Enyhe eső',63:'Eső',65:'Erős eső',71:'Havazás',80:'Zápor',81:'Zápor',82:'Erős zápor',95:'Zivatar'})[code] || 'Változó idő';
+    return `<article class="tips-weather-day"><small>${eventDay}</small><div class="tips-weather-icon">${weatherIcon(code)}</div><p class="tips-weather-condition">${desc}</p><strong>${Math.round(daily.temperature_2m_max[idx])}°C</strong><p>Minimum: ${Math.round(daily.temperature_2m_min[idx])}°C</p><p>Eső: ${daily.precipitation_probability_max?.[idx] ?? '—'}% · Szél: ${Math.round(daily.wind_speed_10m_max?.[idx] ?? 0)} km/h</p></article>`;
   }).join('');
-  status.textContent = 'Napi maximum/minimum hőmérséklet, csapadék-esély és szélerősség.';
+  status.textContent = `${option.textContent} · ${raceDate} · péntek–vasárnap`; 
   source.textContent = 'Forrás: Open-Meteo · az előrejelzés változhat.';
 }
 
@@ -1161,9 +1164,38 @@ races.forEach(race => {
       return `<option value="${safeText(fullName)}"></option>` + aliases.filter(a => normalizeDriverText(a) !== normalizeDriverText(fullName)).map(a => `<option value="${safeText(a)}"></option>`).join('');
     }).join('');
 
-    $('tipRaceInfo').textContent =
-      `${races.length} futam és ${drivers.length} pilóta betöltve.`;
+    // Automatikusan a legközelebbi, még el nem kezdődött esemény legyen kiválasztva.
+    // Sprint és GP külön eseményként kezelendő, ezért a saját dátumukat használjuk.
+    const now = new Date();
+    const futureOptions = Array.from(raceSelect.options)
+      .filter(option => option.value)
+      .map(option => {
+        const date = option.dataset.eventType === 'sprint'
+          ? (option.dataset.sprintDate || option.dataset.raceDate)
+          : (option.dataset.raceDate || option.dataset.sprintDate);
+        const time = option.dataset.eventType === 'sprint'
+          ? (option.dataset.sprintTime || '23:59:00Z')
+          : (option.dataset.raceTime || '23:59:00Z');
+        const dateTime = date ? new Date(`${date}T${time.includes('Z') ? time : time || '23:59:00Z'}`) : null;
+        return { option, dateTime };
+      })
+      .filter(item => item.dateTime && !Number.isNaN(item.dateTime.getTime()) && item.dateTime >= now)
+      .sort((a, b) => a.dateTime - b.dateTime);
+    if (futureOptions.length) {
+      raceSelect.value = futureOptions[0].option.value;
+    } else {
+      // Ha a szezon összes eseménye elmúlt, maradjon kiválasztás nélkül, ne mutassunk régi futamot következőként.
+      raceSelect.value = '';
+    }
+    $('tipRaceInfo').textContent = futureOptions.length
+      ? `Következő esemény automatikusan kiválasztva · ${races.length} futam és ${drivers.length} pilóta betöltve.`
+      : `${races.length} futam és ${drivers.length} pilóta betöltve. Nincs hátralévő esemény a betöltött naptárban.`;
     updateTipLocks();
+    if (raceSelect.value) {
+      showRaceSchedule();
+      loadSavedTip();
+      loadTipReferenceData();
+    }
   } catch (error) {
     console.error('Tippadatok betöltési hiba:', error);
     $('tipRaceInfo').textContent =
