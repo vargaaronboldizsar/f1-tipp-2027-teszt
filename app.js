@@ -403,23 +403,40 @@ async function loadTipReferenceData() {
   const requestId = ++tipReferenceRequest;
   status.textContent = 'Tavalyi hivatalos adatok betöltése…'; data.innerHTML = ''; if (warning) { warning.textContent = ''; delete warning.dataset.referenceMs; }
   try {
-    const round = Number(String(option.value).split('-')[0]);
-    const response = await fetch(`${API_BASE}/2025/races/${round}/qualifying/?limit=100`);
-    if (!response.ok) throw new Error(`API HTTP ${response.status}`);
+    // A Jolpica/Ergast kompatibilis útvonalban az év és a forduló közvetlenül követi egymást.
+    // A 2026-os fordulószám nem minden esetben egyezik a 2025-össel, ezért előbb a pályát keressük.
+    const seasonResponse = await fetch(`${API_BASE}/2025/races/?limit=100`);
+    if (!seasonResponse.ok) throw new Error(`2025-ös versenynaptár API HTTP ${seasonResponse.status}`);
+    const seasonJson = await seasonResponse.json();
+    const previousRaces = seasonJson.MRData?.RaceTable?.Races || [];
+    const currentLabel = String(option.dataset.raceName || option.textContent || '').replace(/\s+(Sprint|GP)$/i, '').replace(/ Grand Prix$/i, '').trim().toLowerCase();
+    const currentCountry = String(option.dataset.country || '').trim().toLowerCase();
+    const currentCircuit = String(option.dataset.circuitId || '').trim().toLowerCase();
+    let previousRace = (currentCircuit && previousRaces.find(r => String(r.Circuit?.circuitId || '').toLowerCase() === currentCircuit))
+      || (currentCountry && previousRaces.find(r => String(r.Circuit?.Location?.country || '').toLowerCase() === currentCountry && String(r.raceName || '').toLowerCase().includes(currentLabel)))
+      || previousRaces.find(r => {
+        const prevLabel = String(r.raceName || '').replace(/ Grand Prix$/i, '').trim().toLowerCase();
+        return currentLabel && (prevLabel.includes(currentLabel) || currentLabel.includes(prevLabel));
+      });
+    if (!previousRace) throw new Error('Ehhez a pályához nincs 2025-ös megfelelő futam.');
+    const response = await fetch(`${API_BASE}/2025/${previousRace.round}/qualifying/?limit=100`);
+    if (!response.ok) throw new Error(`Időmérő API HTTP ${response.status}`);
     const json = await response.json();
     if (requestId !== tipReferenceRequest) return;
     const rows = json.MRData?.RaceTable?.Races?.[0]?.QualifyingResults || [];
     const pole = rows.find(x => Number(x.position) === 1);
     const time = pole?.Q3 || pole?.Q2 || pole?.Q1 || '';
     const label = pole?.Driver ? `${pole.Driver.givenName || ''} ${pole.Driver.familyName || ''}`.trim() : '—';
-    const race = json.MRData?.RaceTable?.Races?.[0];
+    const race = json.MRData?.RaceTable?.Races?.[0] || previousRace;
     status.textContent = race ? `2025 · ${race.raceName || 'azonos forduló'} · hivatalos időmérőadat` : 'A tavalyi eseményhez nem találtam adatot.';
     data.innerHTML = `<div class="panel" style="padding:12px"><small style="color:var(--muted)">Tavalyi pole</small><strong style="display:block;margin-top:6px">${safeText(label)}</strong></div><div class="panel" style="padding:12px"><small style="color:var(--muted)">Pole-idő</small><strong style="display:block;margin-top:6px">${safeText(time || 'Nincs adat')}</strong></div><div class="panel" style="padding:12px"><small style="color:var(--muted)">Időmérős pilóták</small><strong style="display:block;margin-top:6px">${rows.length || '—'}</strong></div>`;
     if (warning && time) warning.dataset.referenceMs = String(tipTimeToMs(time) || '');
     updateTipPredictionWarning();
   } catch (error) {
     if (requestId !== tipReferenceRequest) return;
-    status.textContent = 'A tavalyi időmérőadat most nem érhető el. A tipp ettől még menthető.';
+    status.textContent = error?.message?.includes('nincs 2025-ös megfelelő')
+      ? 'Ehhez a pályához nincs 2025-ös összehasonlítható időmérőadat. A tipp ettől még menthető.'
+      : 'A tavalyi időmérőadat betöltése nem sikerült. A tipp ettől még menthető.';
     console.warn('Tavalyi pole-adat betöltése sikertelen:', error);
   }
 }
@@ -698,7 +715,19 @@ $('tipRaceSelect').addEventListener('change', showRaceSchedule);
 $('tipRaceSelect').addEventListener('change', loadSavedTip);
 $('tipRaceSelect').addEventListener('change', updateTipLocks);
 $('tipRaceSelect').addEventListener('change', loadTipReferenceData);
-$('tipPoleTime').addEventListener('input', updateTipPredictionWarning);
+$('tipPoleTime').addEventListener('input', () => {
+  const field = $('tipPoleTime');
+  const raw = field.value.trim();
+  // A már beszúrt elválasztókat is kezeljük, így gépelés közben végig működik a maszkolás.
+  const digits = raw.replace(/\D/g, '').slice(0, 6);
+  if (digits.length >= 3) {
+    if (digits.length === 3) field.value = `${digits[0]}:${digits.slice(1)}`;
+    else field.value = `${digits[0]}:${digits.slice(1, 3)}.${digits.slice(3)}`;
+  } else {
+    field.value = digits;
+  }
+  updateTipPredictionWarning();
+});
 $('tipPoleTime').addEventListener('blur', () => { $('tipPoleTime').value = normalizePoleTimeInput($('tipPoleTime').value); updateTipPredictionWarning(); });
 $('saveTipsButton').addEventListener('click', saveTips);
 setInterval(() => {
@@ -1039,6 +1068,8 @@ races.forEach(race => {
     option.textContent = label;
 
     option.dataset.raceName = label;
+    option.dataset.circuitId = race.Circuit?.circuitId || '';
+    option.dataset.country = race.Circuit?.Location?.country || '';
     option.dataset.raceDate = race.date || '';
     option.dataset.raceTime = race.time || '';
     option.dataset.qualifyingDate = race.Qualifying?.date || '';
@@ -1079,7 +1110,35 @@ races.forEach(race => {
 
     $('tipRaceInfo').textContent =
       `${races.length} futam és ${drivers.length} pilóta betöltve.`;
+
+    // Alapértelmezésként automatikusan a legközelebbi, még nem lezárult eseményt választjuk.
+    const now = Date.now();
+    const options = [...raceSelect.options].filter(option => option.value);
+    const getDeadline = option => {
+      const isSprint = option.dataset.eventType === 'sprint';
+      const date = isSprint
+        ? (option.dataset.sprintQualifyingDate || option.dataset.sprintDate || option.dataset.raceDate)
+        : (option.dataset.qualifyingDate || option.dataset.raceDate);
+      const time = isSprint
+        ? (option.dataset.sprintQualifyingTime || option.dataset.sprintTime || option.dataset.raceTime)
+        : (option.dataset.qualifyingTime || option.dataset.raceTime);
+      if (!date) return Number.POSITIVE_INFINITY;
+      const isoTime = time ? (time.endsWith('Z') ? time : `${time}Z`) : '00:00:00Z';
+      const stamp = new Date(`${date}T${isoTime}`).getTime();
+      return Number.isFinite(stamp) ? stamp : Number.POSITIVE_INFINITY;
+    };
+    const upcoming = options
+      .map(option => ({ option, deadline: getDeadline(option) }))
+      .filter(item => item.deadline >= now)
+      .sort((a, b) => a.deadline - b.deadline)[0];
+    if (upcoming) raceSelect.value = upcoming.option.value;
+    else if (options.length) raceSelect.value = options[options.length - 1].value;
+
+    showRaceSchedule();
     updateTipLocks();
+    if (raceSelect.value) {
+      await Promise.all([loadSavedTip(), loadTipReferenceData()]);
+    }
   } catch (error) {
     console.error('Tippadatok betöltési hiba:', error);
     $('tipRaceInfo').textContent =
