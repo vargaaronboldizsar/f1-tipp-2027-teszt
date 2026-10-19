@@ -1109,3 +1109,13 @@ button {
 #tipsPage .tips-submit-row{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-top:22px;padding:19px 21px;border:1px solid #263846;border-radius:13px;background:#0d1720}#tipsPage .tips-submit-row>div{display:flex;flex-direction:column;gap:5px}#tipsPage .tips-submit-row strong{color:#edf3f7;font-size:13px}#tipsPage .tips-submit-row span{color:#8498a8;font-size:11px;line-height:1.5}#tipsPage .tips-save-button{min-height:47px;padding:0 20px;white-space:nowrap;box-shadow:0 8px 24px rgba(225,6,0,.16)}#tipsPage .tips-save-button span{margin-left:12px;color:inherit;font-size:17px}#tipsPage .tips-status{min-height:18px;margin:12px 2px;color:#9eb1c0;font-size:12px}
 @media(max-width:900px){#tipsPage .tips-input-grid{grid-template-columns:1fr}#tipsPage .tips-input-card>p{min-height:0;margin-bottom:16px}#tipsPage .tips-field-help{min-height:0}#tipsPage .tips-hero-mark{display:none}}
 @media(max-width:560px){#tipsPage .tips-hero{min-height:0;padding:24px 20px;border-radius:14px}#tipsPage .tips-hero h1{font-size:31px}#tipsPage .tips-section-heading{align-items:flex-start}#tipsPage .tips-mode-pill{margin-top:4px}#tipsPage .tips-race-panel{padding:14px;gap:11px}#tipsPage .tips-race-icon{flex-basis:36px;height:36px}#tipsPage .tips-input-card,#tipsPage .tips-reference-panel{padding:17px}#tipsPage .tips-reference-heading{flex-direction:column}#tipsPage .tips-submit-row{align-items:stretch;flex-direction:column}#tipsPage .tips-save-button{width:100%}}
+
+/* Tippjáték hétvégi időjárás */
+#tipsPage .tips-weekend-weather{margin-top:16px}
+#tipsPage .tips-weekend-weather-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+#tipsPage .tips-weather-day{padding:15px;border:1px solid #2a3b49;border-radius:11px;background:#0b141c;min-width:0}
+#tipsPage .tips-weather-day>small{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.08em}
+#tipsPage .tips-weather-icon{font-size:27px;margin:10px 0}
+#tipsPage .tips-weather-day>strong{display:block;font-size:16px;color:#f5f7fa}
+#tipsPage .tips-weather-day>p{margin:8px 0 0;color:#9aabba;font-size:11px;line-height:1.5}
+@media(max-width:600px){#tipsPage .tips-weekend-weather-grid{grid-template-columns:1fr}}
