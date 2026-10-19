@@ -659,6 +659,13 @@
     <div class="tips-race-select-wrap"><label for="tipRaceSelect">Kiválasztott futam</label><select id="tipRaceSelect"><option value="">Futam kiválasztása...</option></select><p id="tipRaceInfo">Válassz ki egy futamot a tippek megadásához.</p></div>
   </div>
 
+  <div id="tipReferencePanel" class="tips-reference-panel" aria-live="polite">
+    <div class="tips-reference-heading"><div><span class="tips-kicker">DATA CHECK</span><h2>Tavalyi viszonyítási alap</h2><p>Hasonlítsd össze a tippedet a tavalyi időmérővel.</p></div><span class="tips-data-badge">↗ OFFICIAL DATA</span></div>
+    <p id="tipReferenceStatus" class="tips-reference-status">Válassz futamot a tavalyi időmérő- és pole-idő betöltéséhez.</p>
+    <div id="tipReferenceData" class="tips-reference-data"></div>
+    <p id="tipPredictionWarning" class="tips-prediction-warning" role="status"></p>
+  </div>
+
   <div class="tips-section-heading"><div><span class="tips-kicker">02 / A TE JÓSLATOD</span><h2>Három döntés. Egy rajtrács.</h2><p>Írd be a pilóta nevét vagy becenevét, az időt pedig add meg a megszokott formában.</p></div></div>
   <div class="tips-input-grid">
     <article class="tips-input-card tips-driver-card">
@@ -681,12 +688,6 @@
     </article>
   </div>
 
-  <div id="tipReferencePanel" class="tips-reference-panel" aria-live="polite">
-    <div class="tips-reference-heading"><div><span class="tips-kicker">DATA CHECK</span><h2>Tavalyi viszonyítási alap</h2><p>Hasonlítsd össze a tippedet a tavalyi időmérővel.</p></div><span class="tips-data-badge">↗ OFFICIAL DATA</span></div>
-    <p id="tipReferenceStatus" class="tips-reference-status">Válassz futamot a tavalyi időmérő- és pole-idő betöltéséhez.</p>
-    <div id="tipReferenceData" class="tips-reference-data"></div>
-    <p id="tipPredictionWarning" class="tips-prediction-warning" role="status"></p>
-  </div>
   <div class="tips-submit-row"><div><strong>Megvan a tipped?</strong><span>A mentés után bármikor visszatöltheted, amíg a tippzárás engedi.</span></div><button class="primary tips-save-button" id="saveTipsButton">Tippek mentése <span aria-hidden="true">→</span></button></div>
   <p id="tipsStatus" class="tips-status" role="status"></p>
 </section>
