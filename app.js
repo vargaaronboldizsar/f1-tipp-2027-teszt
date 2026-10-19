@@ -336,7 +336,93 @@ loadRace();
 // -----------------------------------------------------------------------------
 
 let tipRacesLoaded = false;
+let tipDriverCatalog = [];
+let tipReferenceRequest = 0;
 
+function normalizeDriverText(value) {
+  return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+function resolveTipDriver(value) {
+  const key = normalizeDriverText(value);
+  if (!key) return null;
+  const aliases = {
+    max: 'verstappen', 'max verstappen': 'verstappen', 'mad max': 'verstappen',
+    lewis: 'hamilton', 'sir lewis': 'hamilton', 'lewis hamilton': 'hamilton',
+    charles: 'leclerc', 'charles leclerc': 'leclerc', 'lando': 'norris',
+    'lando norris': 'norris', 'oscar': 'piastri', 'oscar piastri': 'piastri',
+    'checo': 'perez', 'sergio perez': 'perez', 'fernando': 'alonso',
+    'george': 'russell', 'carlos': 'sainz', 'carlos sainz': 'sainz',
+    'kimi': 'antonelli', 'kimi antonelli': 'antonelli', 'pierre': 'gasly',
+    'alex': 'albon', 'alex albon': 'albon', 'nico': 'hulkenberg',
+    'hulkenberg': 'hulkenberg', 'ollie': 'bearman', 'oliver': 'bearman'
+  };
+  const aliasTarget = aliases[key];
+  const candidates = tipDriverCatalog.map(d => ({...d, full: normalizeDriverText(`${d.givenName} ${d.familyName}`), first: normalizeDriverText(d.givenName), last: normalizeDriverText(d.familyName), code: normalizeDriverText(d.code || '')}));
+  return candidates.find(d => d.full === key || d.last === key || d.first === key || d.code === key || d.driverId === key || (aliasTarget && d.driverId === aliasTarget)) || null;
+}
+function tipDriverName(id) {
+  const d = tipDriverCatalog.find(x => x.driverId === id);
+  return d ? `${d.givenName} ${d.familyName}` : (id || '');
+}
+function normalizePoleTimeInput(raw) {
+  let v = String(raw || '').trim().replace(/,/g, '.').replace(/\s/g, '');
+  if (!v) return '';
+  if (/^\d{5,6}$/.test(v)) {
+    const digits = v.padStart(6, '0');
+    v = `${Number(digits.slice(0, -5))}:${digits.slice(-5, -3)}.${digits.slice(-3)}`;
+  } else if (/^\d{1,2}\.\d{2}\.\d{3}$/.test(v)) {
+    v = v.replace('.', ':').replace('.', '.');
+  } else if (/^\d{1,2}:?\d{2}\.\d{3}$/.test(v) && !v.includes(':')) {
+    v = v.replace(/^(\d{1,2})(\d{2}\.\d{3})$/, '$1:$2');
+  }
+  return v;
+}
+function tipTimeToMs(value) { const m = String(value || '').trim().match(/^(?:(\d+):)?(\d{1,2})\.(\d{3})$/); return m ? ((Number(m[1] || 0) * 60 + Number(m[2])) * 1000 + Number(m[3])) : null; }
+function updateTipPredictionWarning() {
+  const target = $('tipPredictionWarning');
+  if (!target) return;
+  const entered = normalizePoleTimeInput($('tipPoleTime')?.value || '');
+  const reference = Number(target.dataset.referenceMs || 0);
+  if (!entered || !reference) { target.textContent = ''; return; }
+  const ms = tipTimeToMs(entered);
+  if (ms === null) { target.textContent = 'Ellenőrizd az idő formátumát; példa: 1:32.456.'; target.style.color = '#ffbd69'; return; }
+  const delta = ms - reference;
+  const pct = Math.abs(delta) / reference * 100;
+  if (pct > 5) {
+    target.textContent = `Figyelem: a tipped ${Math.abs(delta / 1000).toFixed(3)} mp-cel (${pct.toFixed(1)}%-kal) ${delta < 0 ? 'gyorsabb' : 'lassabb'} a tavalyi pole-időnél. Ellenőrizd, hogy reális-e.`;
+    target.style.color = '#ffbd69';
+  } else {
+    target.textContent = `A tipped ${Math.abs(delta / 1000).toFixed(3)} mp-re (${pct.toFixed(2)}%-ra) van a tavalyi pole-időtől.`;
+    target.style.color = 'var(--muted)';
+  }
+}
+async function loadTipReferenceData() {
+  const option = $('tipRaceSelect')?.selectedOptions?.[0];
+  const status = $('tipReferenceStatus'); const data = $('tipReferenceData'); const warning = $('tipPredictionWarning');
+  if (!option?.value || !status || !data) return;
+  const requestId = ++tipReferenceRequest;
+  status.textContent = 'Tavalyi hivatalos adatok betöltése…'; data.innerHTML = ''; if (warning) { warning.textContent = ''; delete warning.dataset.referenceMs; }
+  try {
+    const round = Number(String(option.value).split('-')[0]);
+    const response = await fetch(`${API_BASE}/2025/races/${round}/qualifying/?limit=100`);
+    if (!response.ok) throw new Error(`API HTTP ${response.status}`);
+    const json = await response.json();
+    if (requestId !== tipReferenceRequest) return;
+    const rows = json.MRData?.RaceTable?.Races?.[0]?.QualifyingResults || [];
+    const pole = rows.find(x => Number(x.position) === 1);
+    const time = pole?.Q3 || pole?.Q2 || pole?.Q1 || '';
+    const label = pole?.Driver ? `${pole.Driver.givenName || ''} ${pole.Driver.familyName || ''}`.trim() : '—';
+    const race = json.MRData?.RaceTable?.Races?.[0];
+    status.textContent = race ? `2025 · ${race.raceName || 'azonos forduló'} · hivatalos időmérőadat` : 'A tavalyi eseményhez nem találtam adatot.';
+    data.innerHTML = `<div class="panel" style="padding:12px"><small style="color:var(--muted)">Tavalyi pole</small><strong style="display:block;margin-top:6px">${safeText(label)}</strong></div><div class="panel" style="padding:12px"><small style="color:var(--muted)">Pole-idő</small><strong style="display:block;margin-top:6px">${safeText(time || 'Nincs adat')}</strong></div><div class="panel" style="padding:12px"><small style="color:var(--muted)">Időmérős pilóták</small><strong style="display:block;margin-top:6px">${rows.length || '—'}</strong></div>`;
+    if (warning && time) warning.dataset.referenceMs = String(tipTimeToMs(time) || '');
+    updateTipPredictionWarning();
+  } catch (error) {
+    if (requestId !== tipReferenceRequest) return;
+    status.textContent = 'A tavalyi időmérőadat most nem érhető el. A tipp ettől még menthető.';
+    console.warn('Tavalyi pole-adat betöltése sikertelen:', error);
+  }
+}
 
 async function loadSavedTip() {
   if (!currentUser) return;
@@ -352,9 +438,9 @@ async function loadSavedTip() {
 
     if (snap.exists()) {
       const tip = snap.data();
-      $('tipPoleDriver').value = tip.poleDriver || '';
+      $('tipPoleDriver').value = tipDriverName(tip.poleDriver) || tip.poleDriver || '';
       $('tipPoleTime').value = tip.poleTime || '';
-      $('tipWinnerDriver').value = tip.winnerDriver || '';
+      $('tipWinnerDriver').value = tipDriverName(tip.winnerDriver) || tip.winnerDriver || '';
       $('tipsStatus').textContent = 'A korábban mentett tipped betöltve.';
     } else {
       $('tipPoleDriver').value = '';
@@ -403,16 +489,20 @@ async function saveTips() {
 
     const poleDriver = poleField.disabled
       ? (oldTip.poleDriver || '')
-      : poleField.value;
+      : (resolveTipDriver(poleField.value)?.driverId || '');
 
     const poleTime = timeField.disabled
       ? (oldTip.poleTime || '')
-      : timeField.value.trim();
+      : normalizePoleTimeInput(timeField.value);
 
     const winnerDriver = winnerField.disabled
       ? (oldTip.winnerDriver || '')
-      : winnerField.value;
+      : (resolveTipDriver(winnerField.value)?.driverId || '');
 
+    if ((!poleField.disabled && poleField.value.trim() && !poleDriver) || (!winnerField.disabled && winnerField.value.trim() && !winnerDriver)) {
+      $('tipsStatus').textContent = 'Nem ismertem fel az egyik pilótanevet. Válassz a felajánlott nevek közül, vagy írd be a hivatalos vezetéknevet.';
+      return;
+    }
     if (
       (!poleField.disabled && !poleDriver) ||
       (!timeField.disabled && !poleTime) ||
@@ -607,6 +697,9 @@ function updateTipLocks() {
 $('tipRaceSelect').addEventListener('change', showRaceSchedule);
 $('tipRaceSelect').addEventListener('change', loadSavedTip);
 $('tipRaceSelect').addEventListener('change', updateTipLocks);
+$('tipRaceSelect').addEventListener('change', loadTipReferenceData);
+$('tipPoleTime').addEventListener('input', updateTipPredictionWarning);
+$('tipPoleTime').addEventListener('blur', () => { $('tipPoleTime').value = normalizePoleTimeInput($('tipPoleTime').value); updateTipPredictionWarning(); });
 $('saveTipsButton').addEventListener('click', saveTips);
 setInterval(() => {
   updateTipLocks();
@@ -913,8 +1006,8 @@ async function loadTipData() {
   }
 
   raceSelect.innerHTML = '<option value="">Futam kiválasztása...</option>';
-  poleSelect.innerHTML = '<option value="">Pilóta kiválasztása...</option>';
-  winnerSelect.innerHTML = '<option value="">Pilóta kiválasztása...</option>';
+  poleSelect.value = '';
+  winnerSelect.value = '';
 
   $('tipRaceInfo').textContent = 'Futamok és pilóták betöltése…';
 
@@ -976,16 +1069,13 @@ races.forEach(race => {
 
 
 
-    drivers.forEach(driver => {
-      const name = `${driver.givenName} ${driver.familyName}`;
-
-      [poleSelect, winnerSelect].forEach(select => {
-        const option = document.createElement('option');
-        option.value = driver.driverId;
-        option.textContent = name;
-        select.appendChild(option);
-      });
-    });
+    tipDriverCatalog = drivers;
+    const driverOptions = $('tipDriverOptions');
+    if (driverOptions) driverOptions.innerHTML = drivers.map(driver => {
+      const fullName = `${driver.givenName} ${driver.familyName}`.trim();
+      const aliases = [driver.code, driver.familyName, driver.givenName].filter(Boolean);
+      return `<option value="${safeText(fullName)}"></option>` + aliases.filter(a => normalizeDriverText(a) !== normalizeDriverText(fullName)).map(a => `<option value="${safeText(a)}"></option>`).join('');
+    }).join('');
 
     $('tipRaceInfo').textContent =
       `${races.length} futam és ${drivers.length} pilóta betöltve.`;
@@ -1985,4 +2075,3 @@ $('joinGroupButton')?.addEventListener('click', async () => {
     button.disabled = false;
   }
 });
-
