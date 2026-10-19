@@ -662,25 +662,31 @@
   <div class="panel" style="padding:22px;margin-bottom:16px">
     <h3>01 – Pole pozíció</h3>
     <p>Ki indul az első helyről az időmérő után?</p>
-    <select id="tipPoleDriver" style="width:100%;padding:12px;background:#071018;color:white;border:1px solid #2b3d4b;border-radius:8px">
-      <option value="">Pilóta kiválasztása...</option>
-    </select>
+    <input id="tipPoleDriver" list="tipDriverOptions" autocomplete="off" placeholder="Pilóta neve vagy beceneve…" style="width:100%;box-sizing:border-box;padding:12px;background:#071018;color:white;border:1px solid #2b3d4b;border-radius:8px">
+    <datalist id="tipDriverOptions"></datalist>
+    <small style="display:block;color:var(--muted);margin-top:8px">Írhatsz teljes nevet, vezetéknevet vagy ismert becenevet is.</small>
   </div>
 
   <div class="panel" style="padding:22px;margin-bottom:16px">
     <h3>02 – Pole idő</h3>
     <p>Milyen idővel szerzi meg a pole pozíciót?</p>
-    <input id="tipPoleTime" type="text" placeholder="Például: 1:32.456" style="width:100%;box-sizing:border-box;padding:12px;background:#071018;color:white;border:1px solid #2b3d4b;border-radius:8px">
+    <input id="tipPoleTime" type="text" inputmode="decimal" autocomplete="off" placeholder="Például: 1:32.456" aria-describedby="tipPoleTimeHelp" style="width:100%;box-sizing:border-box;padding:12px;background:#071018;color:white;border:1px solid #2b3d4b;border-radius:8px">
+    <small id="tipPoleTimeHelp" style="display:block;color:var(--muted);margin-top:8px">Az időt beírhatod például 132456, 1:32.456 vagy 1.32.456 formában is.</small>
   </div>
 
   <div class="panel" style="padding:22px;margin-bottom:20px">
     <h3>03 – Futamgyőztes</h3>
     <p>Ki nyeri a vasárnapi futamot?</p>
-    <select id="tipWinnerDriver" style="width:100%;padding:12px;background:#071018;color:white;border:1px solid #2b3d4b;border-radius:8px">
-      <option value="">Pilóta kiválasztása...</option>
-    </select>
+    <input id="tipWinnerDriver" list="tipDriverOptions" autocomplete="off" placeholder="Pilóta neve vagy beceneve…" style="width:100%;box-sizing:border-box;padding:12px;background:#071018;color:white;border:1px solid #2b3d4b;border-radius:8px">
+    <small style="display:block;color:var(--muted);margin-top:8px">A rendszer a mentéskor a hivatalos pilótaazonosítót tárolja.</small>
   </div>
 
+  <div id="tipReferencePanel" class="panel" style="padding:18px;margin:18px 0" aria-live="polite">
+    <h3 style="margin-top:0">Tavalyi viszonyítási alap</h3>
+    <p id="tipReferenceStatus" style="color:var(--muted)">Válassz futamot a tavalyi időmérő- és pole-idő betöltéséhez.</p>
+    <div id="tipReferenceData" class="cards" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px"></div>
+    <p id="tipPredictionWarning" role="status" style="margin-bottom:0"></p>
+  </div>
   <button class="primary" id="saveTipsButton">
     Tippek mentése →
   </button>
