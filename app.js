@@ -1496,6 +1496,27 @@ const components = [
             const hasScore = candidate => eventScores.some(score => score.uid === candidate.uid);
             if (!existing || (hasTip(p) && !hasTip(existing)) || (hasTip(p) === hasTip(existing) && hasScore(p) && !hasScore(existing))) canonicalByName.set(key,p);
           }
+          // A mentett tipp önmagában is elég ahhoz, hogy a játékos megjelenjen
+          // a futamonkénti bontásban; ne függjön attól, hogy van-e pontrekordja.
+          for (const tip of eventTips) {
+            const key = playerNameKey(tip) || tip.uid;
+            if (!key || canonicalByName.has(key)) continue;
+            canonicalByName.set(key, {
+              uid: tip.uid,
+              name: tip.name || tip.username || 'Játékos',
+              username: tip.username || tip.name || 'Játékos'
+            });
+          }
+          // Saját nézetben mindig jelenjen meg a bejelentkezett felhasználó sora,
+          // akkor is, ha az adott futamhoz még nincs pontdokumentuma.
+          if (selected === 'personal' && currentUser) {
+            const ownTip = eventTips.find(t => t.uid === currentUser.uid);
+            const ownProfile = statsSelectedMembers.find(u => u.uid === currentUser.uid) || {};
+            const ownName = ownProfile.username || ownProfile.displayName || currentUser.displayName || ownTip?.name || 'Saját tipp';
+            const ownKey = playerNameKey({name: ownName}) || currentUser.uid;
+            const ownExisting = [...canonicalByName.values()].some(p => p.uid === currentUser.uid);
+            if (!ownExisting) canonicalByName.set(ownKey, {uid: currentUser.uid, name: ownName, username: ownName});
+          }
           const canonicalPlayers = [...canonicalByName.values()];
           const tipFor = player => eventTips.find(t => t.uid === player.uid) || eventTips.find(t => String(t.name||'').trim().toLocaleLowerCase('hu') === String(player.name||'').trim().toLocaleLowerCase('hu')) || null;
           const timeToMs = value => { const m=String(value||'').trim().match(/^(?:(\d+):)?(\d{1,2})\.(\d{3})$/); return m ? ((Number(m[1]||0)*60+Number(m[2]))*1000+Number(m[3])) : null; };
