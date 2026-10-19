@@ -1509,7 +1509,7 @@ const components = [
           }
           // Saját nézetben mindig jelenjen meg a bejelentkezett felhasználó sora,
           // akkor is, ha az adott futamhoz még nincs pontdokumentuma.
-          if (selected === 'personal' && currentUser) {
+          if (statsGroupMode === 'personal' && currentUser) {
             const ownTip = eventTips.find(t => t.uid === currentUser.uid);
             const ownProfile = statsSelectedMembers.find(u => u.uid === currentUser.uid) || {};
             const ownName = ownProfile.username || ownProfile.displayName || currentUser.displayName || ownTip?.name || 'Saját tipp';
