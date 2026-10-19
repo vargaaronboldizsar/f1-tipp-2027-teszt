@@ -1113,9 +1113,10 @@ button {
 /* Tippjáték hétvégi időjárás */
 #tipsPage .tips-weekend-weather{margin-top:16px}
 #tipsPage .tips-weekend-weather-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-#tipsPage .tips-weather-day{padding:15px;border:1px solid #2a3b49;border-radius:11px;background:#0b141c;min-width:0}
-#tipsPage .tips-weather-day>small{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.08em}
-#tipsPage .tips-weather-icon{font-size:27px;margin:10px 0}
-#tipsPage .tips-weather-day>strong{display:block;font-size:16px;color:#f5f7fa}
-#tipsPage .tips-weather-day>p{margin:8px 0 0;color:#9aabba;font-size:11px;line-height:1.5}
+#tipsPage .tips-weather-day{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;padding:19px 13px 22px;border:1px solid #202b3a;border-bottom:5px solid #e10600;border-radius:10px 10px 5px 5px;background:linear-gradient(180deg,#20212b,#191d27);min-width:0;min-height:270px;box-sizing:border-box}
+#tipsPage .tips-weather-day>small{display:block;color:#f5f7fa;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+#tipsPage .tips-weather-icon{font-size:43px;margin:22px 0 13px;line-height:1.2}
+#tipsPage .tips-weather-day>strong{display:block;margin-top:17px;font-size:clamp(24px,3vw,34px);font-weight:900;color:#fff;letter-spacing:-.04em}
+#tipsPage .tips-weather-day>p{margin:7px 0 0;color:#d0d8e4;font-size:11px;line-height:1.5}
+#tipsPage .tips-weather-day .tips-weather-condition{color:#fff;font-size:13px;margin-top:0}
 @media(max-width:600px){#tipsPage .tips-weekend-weather-grid{grid-template-columns:1fr}}
