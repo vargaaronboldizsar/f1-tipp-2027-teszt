@@ -479,21 +479,46 @@ async function loadTipReferenceData() {
       if (meeting) {
         const practiceSessions = sessions.filter(x => Number(x.meeting_key) === Number(meeting.meeting_key) && /^Practice [123]$/.test(x.session_name || '')).sort((a,b) => Number((b.session_name||'').slice(-1)) - Number((a.session_name||'').slice(-1)));
         for (const session of practiceSessions) {
-          const [lapsRes, driversRes] = await Promise.all([
-            fetch(`${openBase}/laps?session_key=${session.session_key}`),
-            fetch(`${openBase}/drivers?session_key=${session.session_key}`)
+          // Elsőként az OpenF1 session_result végpontját használjuk: practice esetén
+          // a duration a pilóta legjobb körét adja meg, nem kell a teljes körlistát letölteni.
+          // Ez kisebb, gyorsabb és kevésbé érzékeny a laps-végpont lapozására.
+          const [resultRes, driversRes] = await Promise.all([
+            fetch(`${openBase}/session_result?session_key=${session.session_key}&limit=1000`),
+            fetch(`${openBase}/drivers?session_key=${session.session_key}&limit=1000`)
           ]);
-          if (!lapsRes.ok || !driversRes.ok) continue;
-          const [laps, sessionDrivers] = await Promise.all([lapsRes.json(), driversRes.json()]);
-          const driverMap = new Map(sessionDrivers.map(d => [Number(d.driver_number), `${d.first_name || ''} ${d.last_name || ''}`.trim()]));
-          const bestByDriver = new Map();
-          for (const lap of laps) {
-            const duration = Number(lap.lap_duration);
-            if (!Number.isFinite(duration) || duration <= 0 || lap.is_pit_out_lap) continue;
-            const no = Number(lap.driver_number);
-            if (!bestByDriver.has(no) || duration < bestByDriver.get(no)._seconds) bestByDriver.set(no, { _seconds: duration, _time: `${Math.floor(duration/60)}:${(duration%60).toFixed(3).padStart(6,'0')}`, _name: driverMap.get(no) || `#${no}` });
+          let bestSessionLap = null;
+          if (resultRes.ok && driversRes.ok) {
+            const [results, sessionDrivers] = await Promise.all([resultRes.json(), driversRes.json()]);
+            const driverMap = new Map(sessionDrivers.map(d => [Number(d.driver_number), `${d.first_name || ''} ${d.last_name || ''}`.trim()]));
+            const ranked = results.map(r => {
+              const raw = Array.isArray(r.duration) ? r.duration.filter(Number.isFinite).sort((a,b)=>a-b)[0] : Number(r.duration);
+              return { _seconds: raw, _name: driverMap.get(Number(r.driver_number)) || `#${r.driver_number}` };
+            }).filter(r => Number.isFinite(r._seconds) && r._seconds > 0).sort((a,b)=>a._seconds-b._seconds);
+            if (ranked.length) {
+              const r = ranked[0];
+              bestSessionLap = { ...r, _time: `${Math.floor(r._seconds/60)}:${(r._seconds%60).toFixed(3).padStart(6,'0')}` };
+            }
           }
-          const bestSessionLap = Array.from(bestByDriver.values()).sort((a,b)=>a._seconds-b._seconds)[0];
+          // Tartalék: ha a session_result az adott hétvégére nem tartalmaz adatot,
+          // a körlistából számoljuk ki a leggyorsabb érvényes kört.
+          if (!bestSessionLap) {
+            const lapsRes = await fetch(`${openBase}/laps?session_key=${session.session_key}&limit=1000`);
+            if (lapsRes.ok) {
+              const laps = await lapsRes.json();
+              const bestByDriver = new Map();
+              for (const lap of laps) {
+                const duration = Number(lap.lap_duration);
+                if (!Number.isFinite(duration) || duration <= 0 || lap.is_pit_out_lap) continue;
+                const no = Number(lap.driver_number);
+                if (!bestByDriver.has(no) || duration < bestByDriver.get(no)._seconds) bestByDriver.set(no, { _seconds: duration, _time: `${Math.floor(duration/60)}:${(duration%60).toFixed(3).padStart(6,'0')}`, _name: `#${no}` });
+              }
+              bestSessionLap = Array.from(bestByDriver.values()).sort((a,b)=>a._seconds-b._seconds)[0] || null;
+              if (bestSessionLap) {
+                const d = await fetch(`${openBase}/drivers?session_key=${session.session_key}&driver_number=${encodeURIComponent(String(bestSessionLap._name).replace('#',''))}`);
+                if (d.ok) { const ds = await d.json(); if (ds[0]) bestSessionLap._name = `${ds[0].first_name || ''} ${ds[0].last_name || ''}`.trim() || bestSessionLap._name; }
+              }
+            }
+          }
           if (bestSessionLap) { practiceRows = [bestSessionLap]; practiceLabel = session.session_name.replace('Practice','FP'); break; }
         }
       }
