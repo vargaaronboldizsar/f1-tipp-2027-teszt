@@ -1009,6 +1009,7 @@ let statsSnapshotData = { users: [], scores: [], leaderboard: [], events: [], co
 let statsGroupMode = 'personal';
 let statsSelectedGroupId = '';
 let statsGroups = [];
+let statsGroupMemberUids = null;
 
 async function loadStatsGroups() {
   const select = $('statsGroupSelect');
