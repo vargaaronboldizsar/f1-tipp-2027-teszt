@@ -1888,3 +1888,110 @@ async function loadLeaderboardData() {
     return [];
   }
 }
+
+// -----------------------------------------------------------------------------
+// Csoport létrehozása és csatlakozás meghívókóddal
+// -----------------------------------------------------------------------------
+$('createGroupButton')?.addEventListener('click', async () => {
+  const status = $('groupsStatus');
+  const button = $('createGroupButton');
+  if (!currentUser) {
+    if (status) status.textContent = 'Csoport létrehozásához először jelentkezz be Google-fiókkal.';
+    toast('Előbb jelentkezz be.');
+    return;
+  }
+
+  const name = $('newGroupName')?.value?.trim() || '';
+  if (name.length < 3) {
+    if (status) status.textContent = 'A csoport neve legalább 3 karakter legyen.';
+    $('newGroupName')?.focus();
+    return;
+  }
+
+  button.disabled = true;
+  if (status) status.textContent = 'Csoport létrehozása…';
+  try {
+    const groupRef = doc(collection(db, 'groups'));
+    const inviteCode = makeInviteCode();
+    const username = $('username')?.value?.trim() || currentUser.displayName || 'Versenyző';
+    const batch = writeBatch(db);
+    batch.set(groupRef, {
+      name,
+      season: 2026,
+      status: 'active',
+      createdBy: currentUser.uid,
+      createdByName: username,
+      inviteCode,
+      createdAt: serverTimestamp()
+    });
+    batch.set(doc(db, 'groups', groupRef.id, 'members', currentUser.uid), {
+      uid: currentUser.uid,
+      username,
+      role: 'admin',
+      joinedAt: serverTimestamp()
+    });
+    await batch.commit();
+    $('newGroupName').value = '';
+    if (status) status.textContent = `Sikeres csoportlétrehozás. Meghívókód: ${inviteCode}`;
+    await loadMyGroups();
+  } catch (error) {
+    console.error('Csoportlétrehozási hiba:', error);
+    if (status) status.textContent = `Nem sikerült létrehozni a csoportot: ${error.message || error}`;
+  } finally {
+    button.disabled = false;
+  }
+});
+
+$('joinGroupButton')?.addEventListener('click', async () => {
+  const status = $('groupsStatus');
+  const button = $('joinGroupButton');
+  if (!currentUser) {
+    if (status) status.textContent = 'Csatlakozáshoz először jelentkezz be Google-fiókkal.';
+    toast('Előbb jelentkezz be.');
+    return;
+  }
+
+  const code = $('joinGroupCode')?.value?.trim()?.toUpperCase() || '';
+  if (!code) {
+    if (status) status.textContent = 'Írd be a meghívókódot.';
+    $('joinGroupCode')?.focus();
+    return;
+  }
+
+  button.disabled = true;
+  if (status) status.textContent = 'Csoport keresése…';
+  try {
+    const found = await getDocs(query(collection(db, 'groups'), where('inviteCode', '==', code)));
+    if (found.empty) {
+      if (status) status.textContent = 'Nem található ilyen meghívókód. Ellenőrizd a kódot.';
+      return;
+    }
+
+    const groupDoc = found.docs[0];
+    const memberRef = doc(db, 'groups', groupDoc.id, 'members', currentUser.uid);
+    const existing = await getDoc(memberRef);
+    if (existing.exists()) {
+      if (status) status.textContent = `Már tagja vagy ennek a csoportnak: ${groupDoc.data().name || 'csoport'}`;
+      await loadMyGroups();
+      return;
+    }
+
+    const username = $('username')?.value?.trim() || currentUser.displayName || 'Versenyző';
+    await setDoc(memberRef, {
+      uid: currentUser.uid,
+      username,
+      role: 'member',
+      joinedAt: serverTimestamp()
+    });
+
+    $('joinGroupCode').value = '';
+    if (status) status.textContent = `Sikeresen csatlakoztál ehhez a csoporthoz: ${groupDoc.data().name || 'csoport'}.`;
+    await loadMyGroups();
+  } catch (error) {
+    console.error('Csoporthoz csatlakozási hiba:', error);
+    if (status) status.textContent = `Nem sikerült csatlakozni: ${error.message || error}`;
+  } finally {
+    button.disabled = false;
+  }
+});
+
