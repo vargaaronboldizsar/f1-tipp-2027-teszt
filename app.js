@@ -1223,48 +1223,37 @@ async function loadOfficialStatsData() {
   if (officialStatsPromise) return officialStatsPromise;
   officialStatsPromise = (async () => {
     const season = 2026;
-    const response = await fetch(`${API_BASE}/${season}/races/?limit=100`);
-    if (!response.ok) throw new Error(`F1 naptár HTTP ${response.status}`);
-    const json = await response.json();
-    const races = json.MRData?.RaceTable?.Races || [];
-    const officialEvents = [];
-    const requests = [];
-    for (const race of races) {
-      const sprint = Boolean(race.Sprint?.date || race.SprintQualifying?.date);
-      if (sprint) officialEvents.push({ key: `${race.round}-sprint`, round: Number(race.round), name: `${race.raceName} – Sprint`, raceName: race.raceName, sprint: true, race, qualifying: null, results: null });
-      officialEvents.push({ key: String(race.round), round: Number(race.round), name: race.raceName, raceName: race.raceName, sprint: false, race, qualifying: null, results: null });
+    // A hivatalos eredményeket a GitHub Actions szinkronizálja a Firestore-ba.
+    // A kliens nem hívja közvetlenül a Jolpica API-t statisztikamegnyitáskor.
+    const scheduleSnap = await getDoc(doc(db, 'officialSchedule', String(season)));
+    if (!scheduleSnap.exists()) {
+      throw new Error('A hivatalos versenynaptár még nincs eltárolva. Futtasd a GitHub Actions „Sync F1 official results” workflow-t.');
     }
-    // Jolpica korlátozhatja a túl sok egyidejű kérést. Két végpontot kérünk eseményenként,
-    // de egyszerre csak néhány eseményt dolgozunk fel, hogy ne csak az első futam töltődjön be.
-    for (let start = 0; start < officialEvents.length; start += 4) {
-      const batch = officialEvents.slice(start, start + 4);
-      await Promise.all(batch.map(async ev => {
-        const qPath = ev.sprint ? 'sprintqualifying' : 'qualifying';
-        const rPath = ev.sprint ? 'sprint' : 'results';
-        const urls = [`${API_BASE}/${season}/${ev.round}/${qPath}/?limit=100`, `${API_BASE}/${season}/${ev.round}/${rPath}/?limit=100`];
-        const vals = await Promise.all(urls.map(async url => {
-          try {
-            let r = await fetch(url);
-            if (r.status === 429 || r.status >= 500) { await new Promise(resolve => setTimeout(resolve, 700)); r = await fetch(url); }
-            if (!r.ok) { ev.apiError = `HTTP ${r.status}`; return null; }
-            return await r.json();
-          } catch (error) { ev.apiError = error?.message || 'Hálózati hiba'; return null; }
-        }));
-        ev.qualifying = vals[0]?.MRData?.RaceTable?.Races?.[0]?.QualifyingResults || vals[0]?.MRData?.RaceTable?.Races?.[0]?.SprintQualifyingResults || [];
-        ev.results = vals[1]?.MRData?.RaceTable?.Races?.[0]?.SprintResults || vals[1]?.MRData?.RaceTable?.Races?.[0]?.Results || [];
-        const q1 = ev.qualifying.find(x => Number(x.position) === 1) || null;
-        ev.poleDriver = q1 ? officialDriverName(q1.Driver) : '';
-        ev.poleDriverId = q1?.Driver?.driverId || '';
-        ev.poleCode = q1?.Driver?.code || '';
-        ev.poleTime = q1?.Q3 || q1?.SQ3 || q1?.Q2 || q1?.SQ2 || q1?.Q1 || q1?.SQ1 || '';
-        const win = ev.results.find(x => Number(x.position) === 1) || null;
-        ev.winner = win ? officialDriverName(win.Driver) : '';
-        ev.winnerDriverId = win?.Driver?.driverId || '';
-        ev.winnerCode = win?.Driver?.code || '';
-        ev.driverNames = Object.fromEntries([...ev.qualifying, ...ev.results].filter(x=>x.Driver?.driverId).map(x=>[x.Driver.driverId, officialDriverName(x.Driver)]));
-        ev.date = ev.sprint ? (ev.race.Sprint?.date || ev.race.SprintQualifying?.date || ev.race.date) : ev.race.date;
-      }));
-      if (start + 4 < officialEvents.length) await new Promise(resolve => setTimeout(resolve, 250));
+    const scheduleData = scheduleSnap.data() || {};
+    const schedule = Array.isArray(scheduleData.events) ? scheduleData.events : [];
+    const officialEvents = [];
+    for (const item of schedule) {
+      const resultSnap = await getDoc(doc(db, 'officialResults', String(item.key)));
+      const saved = resultSnap.exists() ? (resultSnap.data() || {}) : {};
+      const qualifying = Array.isArray(saved.qualifying) ? saved.qualifying : [];
+      const results = Array.isArray(saved.results) ? saved.results : [];
+      const q1 = qualifying.find(x => Number(x.position) === 1) || null;
+      const win = results.find(x => Number(x.position) === 1) || null;
+      const event = {
+        ...item,
+        qualifying,
+        results,
+        poleDriver: q1 ? officialDriverName(q1.Driver) : '',
+        poleDriverId: q1?.Driver?.driverId || '',
+        poleCode: q1?.Driver?.code || '',
+        poleTime: q1?.Q3 || q1?.SQ3 || q1?.Q2 || q1?.SQ2 || q1?.Q1 || q1?.SQ1 || '',
+        winner: win ? officialDriverName(win.Driver) : '',
+        winnerDriverId: win?.Driver?.driverId || '',
+        winnerCode: win?.Driver?.code || '',
+        driverNames: Object.fromEntries([...qualifying, ...results].filter(x => x.Driver?.driverId).map(x => [x.Driver.driverId, officialDriverName(x.Driver)])),
+        apiError: saved.lastError || ''
+      };
+      officialEvents.push(event);
     }
        const tipsByEvent = {};
     const selected = $('statsGroupSelect')?.value || 'personal';
@@ -1450,7 +1439,7 @@ const components = [
     loadOfficialStatsData().then(({officialEvents,tipsByEvent})=>{
       if(!document.getElementById('statsOfficialEvents') || activeStatsTab!=='events') return;
       statsSnapshotData.officialEvents=officialEvents; statsSnapshotData.tipsByEvent=tipsByEvent;
-      const status=$('statsOfficialStatus'); if(status) { const tipCount=Object.values(tipsByEvent).reduce((n,a)=>n+a.length,0); const failed=officialEvents.filter(e=>!e.poleDriver&&!e.winner).length; status.textContent=`Hivatalos F1-adatok: Jolpica API${failed?` · ${failed} esemény eredménye még nem érhető el`:''} · Betöltött tipprekordok: ${tipCount}${tipCount?'':' · más játékosok tippjeihez ellenőrizd a Firestore Rules jogosultságait'}`; }
+      const status=$('statsOfficialStatus'); if(status) { const tipCount=Object.values(tipsByEvent).reduce((n,a)=>n+a.length,0); const failed=officialEvents.filter(e=>!e.poleDriver&&!e.winner).length; status.textContent=`Hivatalos F1-adatok: Firestore${failed?` · ${failed} esemény eredménye még nem érhető el`:''} · Betöltött tipprekordok: ${tipCount}${tipCount?'':' · más játékosok tippjeihez ellenőrizd a Firestore Rules jogosultságait'}`; }
       const renderEvents=()=>{
         const target=$('statsOfficialEvents'); if(!target)return;
         const type=$('statsEventType')?.value||'all';
@@ -1495,27 +1484,6 @@ const components = [
             const hasTip = candidate => tips.some(t => t.uid === candidate.uid && [t.raceId,t._tipDocId,t.eventId,t.raceName].some(v => [ev.key,String(ev.round),`${ev.round}-sprint`,ev.raceName,`${ev.raceName} sprint`].some(k => normalizedEventKey(v) === normalizedEventKey(k))));
             const hasScore = candidate => eventScores.some(score => score.uid === candidate.uid);
             if (!existing || (hasTip(p) && !hasTip(existing)) || (hasTip(p) === hasTip(existing) && hasScore(p) && !hasScore(existing))) canonicalByName.set(key,p);
-          }
-          // A mentett tipp önmagában is elég ahhoz, hogy a játékos megjelenjen
-          // a futamonkénti bontásban; ne függjön attól, hogy van-e pontrekordja.
-          for (const tip of eventTips) {
-            const key = playerNameKey(tip) || tip.uid;
-            if (!key || canonicalByName.has(key)) continue;
-            canonicalByName.set(key, {
-              uid: tip.uid,
-              name: tip.name || tip.username || 'Játékos',
-              username: tip.username || tip.name || 'Játékos'
-            });
-          }
-          // Saját nézetben mindig jelenjen meg a bejelentkezett felhasználó sora,
-          // akkor is, ha az adott futamhoz még nincs pontdokumentuma.
-          if (statsGroupMode === 'personal' && currentUser) {
-            const ownTip = eventTips.find(t => t.uid === currentUser.uid);
-            const ownProfile = statsSelectedMembers.find(u => u.uid === currentUser.uid) || {};
-            const ownName = ownProfile.username || ownProfile.displayName || currentUser.displayName || ownTip?.name || 'Saját tipp';
-            const ownKey = playerNameKey({name: ownName}) || currentUser.uid;
-            const ownExisting = [...canonicalByName.values()].some(p => p.uid === currentUser.uid);
-            if (!ownExisting) canonicalByName.set(ownKey, {uid: currentUser.uid, name: ownName, username: ownName});
           }
           const canonicalPlayers = [...canonicalByName.values()];
           const tipFor = player => eventTips.find(t => t.uid === player.uid) || eventTips.find(t => String(t.name||'').trim().toLocaleLowerCase('hu') === String(player.name||'').trim().toLocaleLowerCase('hu')) || null;
