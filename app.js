@@ -298,16 +298,24 @@ async function loadRace() {
   $('heroStatus').textContent = '';
   $('heroStatus').setAttribute('aria-hidden', 'true');
   $('trackLength').textContent = race.length ? Number(race.length).toLocaleString('hu-HU', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' km' : '—';
+  const trackCaption = $('trackCaption');
+  if (trackCaption) trackCaption.textContent = race.circuit || race.Circuit?.circuitName || race.name || 'Pályarajz';
   $('trackCorners').textContent = race.corners ?? '—';
   const lapsEl = $('trackLaps'); if (lapsEl) lapsEl.textContent = race.laps ?? '—';
   $('raceDistance').textContent = (race.length && race.laps) ? (race.length * race.laps).toLocaleString('hu-HU', { maximumFractionDigits: 3 }) + ' km' : '—';
   if (race.heroImageUrl) {
     document.querySelector('.hero').style.backgroundImage = `linear-gradient(90deg,#020609 0%,#03090def 27%,#07101870 62%,#050a0e30),linear-gradient(0deg,#050a0e 0%,transparent 35%),url("${race.heroImageUrl}")`;
   }
-  if (race.trackSvgPath) {
-    const path = document.querySelector('.track-svg path');
-    if (path)
-      path.setAttribute('d', race.trackSvgPath);
+  const trackSvg = document.querySelector('.track-svg');
+  const trackPath = trackSvg?.querySelector('path');
+  if (race.trackSvgPath && trackPath) {
+    trackPath.setAttribute('d', race.trackSvgPath);
+    trackSvg.setAttribute('aria-label', `${race.circuit || race.name} pályarajza`);
+    trackSvg.style.display = '';
+  } else if (trackSvg) {
+    // Ne mutassunk egy másik pályáról származó, félrevezető statikus rajzot.
+    trackSvg.style.display = 'none';
+    if (trackCaption) trackCaption.textContent = `${race.circuit || race.name || 'Pálya'} · pályarajz még nem érhető el`;
   }
   setTraitRows(race);
   $('interestingFact').textContent = 'ⓘ ' + (race.fact || 'A pálya jellemzői a verseny helyszíne alapján frissülnek.');
@@ -1458,9 +1466,6 @@ function goTips() {
   $(id).addEventListener('click', goTips);
 });
 
-$('raceDetailsButton').addEventListener('click', () => {
-  openSection('calendar');
-});
 
 
 
