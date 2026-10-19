@@ -44,18 +44,38 @@ const teamColors = {
 };
 
 function applyTeamTheme() {
-  const team = $('teamSelect').value;
-  const standard = $('standardTheme').checked;
+  const teamSelect = $('teamSelect');
+  const standardToggle = $('standardTheme');
+  const team = teamSelect?.value || 'ferrari';
+  const standard = !!standardToggle?.checked;
   const color = standard ? '#f20a24' : (teamColors[team] || '#e10600');
+  const root = document.documentElement;
 
-  document.documentElement.style.setProperty('--red', color);
-  document.documentElement.style.setProperty('--accent', color);
+  // A kiválasztott csapat témája az egész felületre érvényesül.
+  root.dataset.teamTheme = standard ? 'standard' : team;
+  root.style.setProperty('--red', color);
+  root.style.setProperty('--accent', color);
+  root.style.setProperty('--team-color', color);
+  root.style.setProperty('--team-color-soft', `${color}22`);
+  root.style.setProperty('--team-color-border', `${color}88`);
 }
 
-$('teamSelect').addEventListener('change', applyTeamTheme);
-$('standardTheme').addEventListener('change', applyTeamTheme);
+$('teamSelect')?.addEventListener('change', applyTeamTheme);
+$('standardTheme')?.addEventListener('change', applyTeamTheme);
+
+// A régi „Pilóták” menüpontot Hírek néven használjuk.
+function configureNewsNavigation() {
+  document.querySelectorAll('[data-nav="drivers"]').forEach(button => {
+    const label = [...button.querySelectorAll('span')].find(span => span !== button.querySelector('span:first-child'));
+    if (label) label.textContent = 'Hírek';
+    else button.setAttribute('aria-label', 'Hírek');
+    button.title = 'Forma–1 hírek';
+    button.dataset.nav = 'news';
+  });
+}
 
 applyTeamTheme();
+configureNewsNavigation();
 
 function toast(message) { const t = $('toast'); t.textContent = message; t.classList.remove('hidden'); clearTimeout(window.__toastTimer); window.__toastTimer = setTimeout(() => t.classList.add('hidden'), 4200); }
 // -----------------------------------------------------------------------------
@@ -95,6 +115,7 @@ $('saveProfileButton').addEventListener('click', async () => {
 
     $('headerName').textContent = username;
     $('headerTeam').textContent = data.team.toUpperCase() + ' SZURKOLÓ';
+    applyTeamTheme();
     updateProfileIdentity(data);
     $('settingsOverlay').classList.add('hidden');
 
@@ -981,13 +1002,13 @@ function showOnlyPage(pageId) {
   if (!content) return;
   [...content.children].forEach(el => {
     const isFooter = el.classList.contains('footer');
-    const isPage = ['tipsPage', 'groupsPage', 'rankingPage', 'statsPage', 'calendarPage', 'profilePage'].includes(el.id);
+    const isPage = ['tipsPage', 'groupsPage', 'rankingPage', 'statsPage', 'calendarPage', 'profilePage', 'newsPage'].includes(el.id);
     if (isPage) el.classList.toggle('hidden', el.id !== pageId);
     else el.classList.toggle('hidden', pageId !== 'home' && !isFooter);
   });
   if (pageId === 'home') {
     [...content.children].forEach(el => {
-      if (!['tipsPage', 'groupsPage', 'rankingPage', 'statsPage', 'calendarPage', 'profilePage'].includes(el.id)) el.classList.remove('hidden');
+      if (!['tipsPage', 'groupsPage', 'rankingPage', 'statsPage', 'calendarPage', 'profilePage', 'newsPage'].includes(el.id)) el.classList.remove('hidden');
     });
   }
 }
@@ -998,6 +1019,36 @@ function showTipsPage() {
 function showHomePage() {
   showOnlyPage('home');
 }
+function showNewsPage() {
+  const content = document.querySelector('.content');
+  if (!content) return;
+  let page = $('newsPage');
+  if (!page) {
+    page = document.createElement('section');
+    page.id = 'newsPage';
+    page.className = 'news-page';
+    page.innerHTML = `
+      <div class="news-hero panel">
+        <div class="news-hero-copy">
+          <span class="eyebrow">APEX · PADDOCK HÍREK</span>
+          <h1>F1 Hírek</h1>
+          <p>A Formula–1 legfrissebb hírei és hivatalos bejelentései egy helyen.</p>
+          <a class="primary news-official-link" href="https://www.formula1.com/en/latest" target="_blank" rel="noopener noreferrer">Hivatalos F1 hírek megnyitása ↗</a>
+        </div>
+      </div>
+      <div class="panel news-source-card">
+        <div class="panel-head">Hivatalos hírforrás</div>
+        <div class="panel-body">
+          <p>A Formula1.com híroldala új híreket, csapatbejelentéseket, interjúkat és versenyhétvégi beszámolókat közöl.</p>
+          <p class="news-note">A magyar fordítás és az automatikus értesítés külön fejlesztést igényel; ez a nézet egyelőre a hivatalos forrást nyitja meg, nem jelenít meg kitalált vagy ellenőrizetlen híreket.</p>
+          <a class="secondary news-text-link" href="https://www.formula1.com/en/latest" target="_blank" rel="noopener noreferrer">Formula1.com · Latest News ↗</a>
+        </div>
+      </div>`;
+    content.appendChild(page);
+  }
+  showOnlyPage('newsPage');
+}
+
 function openSection(key) {
   if (key === 'profile') { if (!currentUser) { $('loginOverlay').classList.remove('hidden'); $('loginStatus').textContent = 'A profilod megtekintéséhez jelentkezz be.'; return; } showOnlyPage('profilePage'); loadProfileStats(); return; }
   if (key === 'settings') {
@@ -1015,9 +1066,9 @@ function openSection(key) {
   if (key === 'ranking') { showOnlyPage('rankingPage'); loadScoreboard(); return; }
   if (key === 'stats') { showOnlyPage('statsPage'); loadScoreboard(); return; }
   if (key === 'calendar') { showOnlyPage('calendarPage'); initCalendar(); return; }
+  if (key === 'news') { showNewsPage(); return; }
   showHomePage();
   const messages = {
-    drivers: 'A pilótalista bekötése következik.',
     rules: 'A játékszabályok bekötése következik.'
   };
   toast(messages[key] || 'Ez a nézet később készül el.');
