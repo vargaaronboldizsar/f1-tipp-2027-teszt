@@ -66,12 +66,20 @@ $('standardTheme')?.addEventListener('change', applyTeamTheme);
 // A régi „Pilóták” menüpontot Hírek néven használjuk.
 function configureNewsNavigation() {
   document.querySelectorAll('[data-nav="drivers"]').forEach(button => {
-    const label = [...button.querySelectorAll('span')].find(span => span !== button.querySelector('span:first-child'));
+    const spans = [...button.querySelectorAll('span')];
+    const label = spans.length > 1 ? spans[spans.length - 1] : null;
     if (label) label.textContent = 'Hírek';
-    else button.setAttribute('aria-label', 'Hírek');
+    else {
+      const textNode = [...button.childNodes].find(n => n.nodeType === Node.TEXT_NODE && n.textContent.trim());
+      if (textNode) textNode.textContent = ' Hírek';
+      else button.append(document.createTextNode(' Hírek'));
+    }
+    button.setAttribute('aria-label', 'Hírek');
     button.title = 'Forma–1 hírek';
     button.dataset.nav = 'news';
   });
+  const sidebar = document.querySelector('.sidebar');
+  if (sidebar) sidebar.style.overflowY = 'auto';
 }
 
 applyTeamTheme();
@@ -1027,26 +1035,43 @@ function showNewsPage() {
     page = document.createElement('section');
     page.id = 'newsPage';
     page.className = 'news-page';
-    page.innerHTML = `
-      <div class="news-hero panel">
-        <div class="news-hero-copy">
-          <span class="eyebrow">APEX · PADDOCK HÍREK</span>
-          <h1>F1 Hírek</h1>
-          <p>A Formula–1 legfrissebb hírei és hivatalos bejelentései egy helyen.</p>
-          <a class="primary news-official-link" href="https://www.formula1.com/en/latest" target="_blank" rel="noopener noreferrer">Hivatalos F1 hírek megnyitása ↗</a>
-        </div>
-      </div>
-      <div class="panel news-source-card">
-        <div class="panel-head">Hivatalos hírforrás</div>
-        <div class="panel-body">
-          <p>A Formula1.com híroldala új híreket, csapatbejelentéseket, interjúkat és versenyhétvégi beszámolókat közöl.</p>
-          <p class="news-note">A magyar fordítás és az automatikus értesítés külön fejlesztést igényel; ez a nézet egyelőre a hivatalos forrást nyitja meg, nem jelenít meg kitalált vagy ellenőrizetlen híreket.</p>
-          <a class="secondary news-text-link" href="https://www.formula1.com/en/latest" target="_blank" rel="noopener noreferrer">Formula1.com · Latest News ↗</a>
-        </div>
-      </div>`;
     content.appendChild(page);
   }
+
+  const teamKey = $('teamSelect')?.value || 'ferrari';
+  const driverKey = $('driverSelect')?.value || 'leclerc';
+  const teamLabel = ({ferrari:'Ferrari',mclaren:'McLaren',mercedes:'Mercedes',redbull:'Red Bull',williams:'Williams',astonmartin:'Aston Martin',alpine:'Alpine',racingbulls:'Racing Bulls',audi:'Audi',haas:'Haas'})[teamKey] || teamKey;
+  const driverLabel = ({leclerc:'Charles Leclerc',hamilton:'Lewis Hamilton',norris:'Lando Norris',piastri:'Oscar Piastri',verstappen:'Max Verstappen',russell:'George Russell',antonelli:'Kimi Antonelli',alonso:'Fernando Alonso',stroll:'Lance Stroll',sainz:'Carlos Sainz',albon:'Alex Albon',gasly:'Pierre Gasly',ocon:'Esteban Ocon',bearman:'Oliver Bearman',lawson:'Liam Lawson',hadjar:'Isack Hadjar',hulkenberg:'Nico Hülkenberg',bortoleto:'Gabriel Bortoleto'})[driverKey] || driverKey;
+  const teamColor = teamColors[teamKey] || '#e10600';
+  const escapeHtml = v => String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const cards = (kind, name, color) => {
+    const isTeam = kind === 'team';
+    const examples = isTeam ? [
+      ['Fejlesztés','Mérnöki munka','A következő versenyre fókuszál a csapat','A hírfolyam itt a kiválasztott csapatról szóló friss híreket és technikai elemzéseket gyűjti majd össze.'],
+      ['Interjú','Nyilatkozat','A csapat pilótái a hétvége legfontosabb kérdéseiről','Rövid magyar összefoglaló az eredeti cikkből, a forrás megjelölésével.'],
+      ['Háttér','Elemzés','Mit jelenthet a fejlesztési irány a szezon hátralévő részére?','A feldolgozott cikkből készülő magyar nyelvű összefoglaló helye.']
+    ] : [
+      ['Interjú','Pilótanyilatkozat','A pilóta a következő futam kihívásairól beszélt','A kedvenc pilótádhoz kapcsolódó interjúk, nyilatkozatok és versenyhírek jelennek majd meg.'],
+      ['Elemzés','Versenyzés','A hétvége kulcskérdései a pilóta szemszögéből','Rövid, magyar nyelvű összefoglaló, kattintással az eredeti cikkre.'],
+      ['Paddock','Háttér','A legfontosabb fejlemények a pilóta körül','A rendszer a több hírforrásból származó ismétlődő cikkeket összevonja.']
+    ];
+    return `<section class="feed-column" style="--feed-color:${color}">
+      <header class="feed-column-head"><div class="feed-avatar">${isTeam?'🏁':'🏎'}</div><div class="feed-heading"><h2>${escapeHtml(name)} hírei</h2><p>${isTeam?'A kedvenc csapatodról':'A kedvenc pilótádról'} · magyar összefoglalók</p></div><span class="feed-follow">${isTeam?'CSAPAT':'PILÓTA'}</span></header>
+      <div class="feed-cards">${examples.map((x,i)=>`<article class="feed-card ${i===0?'feed-card-featured':''}"><div class="feed-card-image feed-image-${isTeam?'team':'driver'}-${i+1}"><span>${escapeHtml(x[0])}</span><small>TERVEZETT HÍRFORMÁTUM</small></div><div class="feed-card-content"><div class="feed-card-meta"><span>${escapeHtml(name)}</span><span>Forrás: példa</span></div><h3>${escapeHtml(x[2])}</h3><p>${escapeHtml(x[3])}</p><div class="feed-card-footer"><span>Magyar összefoglaló</span><span class="feed-status">DEMO</span></div></div></article>`).join('')}</div>
+    </section>`;
+  };
+  page.innerHTML = `
+    <div class="news-hero news-hero-feed" style="--hero-team:${teamColor}"><div class="news-hero-copy"><span class="eyebrow">APEX · SZEMÉLYRE SZABOTT PADDOCK</span><h1>Hírek</h1><p>Az F1 világa, a te csapatodra és pilótádra szűrve — magyarul.</p><div class="news-hero-chips"><span>✦ ${escapeHtml(teamLabel)}</span><span>✦ ${escapeHtml(driverLabel)}</span><span>HU · AI-összefoglalók</span></div></div><div class="news-hero-art" aria-hidden="true">APEX<span>F1</span></div></div>
+    <div class="news-feed-toolbar"><div><strong>Személyes hírfolyam</strong><p>A beállításaidból veszi a kedvenc csapatot és pilótát.</p></div><div class="news-tabs" role="tablist"><button class="active" data-feed-tab="both">Mindkettő</button><button data-feed-tab="team">Csapatom</button><button data-feed-tab="driver">Pilótám</button></div></div>
+    <div class="news-feed-grid" id="newsFeedGrid">${cards('team',teamLabel,teamColor)}${cards('driver',driverLabel,'#3671c6')}</div>
+    <div class="news-backend-note"><strong>Fejlesztési állapot: felület elkészült, élő híradat még nincs bekötve.</strong><p>A kártyák jelenleg minták, nem valódi hírek. A következő integrációs lépés a megbízható RSS/API-források begyűjtése, szerveroldali AI-fordítás és a Firestore-ba mentett hírfolyam. Az AI API-kulcsot szerveroldalon kell tárolni.</p><a href="https://www.formula1.com/en/latest" target="_blank" rel="noopener noreferrer">Formula1.com hivatalos hírek ↗</a></div>`;
   showOnlyPage('newsPage');
+  page.querySelectorAll('[data-feed-tab]').forEach(btn => btn.addEventListener('click', () => {
+    page.querySelectorAll('[data-feed-tab]').forEach(b => b.classList.toggle('active', b === btn));
+    const grid = $('newsFeedGrid');
+    grid.classList.toggle('feed-only-team', btn.dataset.feedTab === 'team');
+    grid.classList.toggle('feed-only-driver', btn.dataset.feedTab === 'driver');
+  }));
 }
 
 function openSection(key) {
