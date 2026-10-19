@@ -407,7 +407,7 @@ async function loadTipReferenceData() {
   const circuitId = option.dataset.circuitId || '';
   // A 2025-ös történeti eredmények lezártak: böngészőben tartósan cache-eljük őket,
   // így ugyanazt a versenyt nem kérjük le újra minden oldalnyitáskor.
-  const referenceCacheKey = `apex-tip-reference-v4-2025-${circuitId || normalizeDriverText(option.dataset.raceName || option.textContent)}`;
+  const referenceCacheKey = `apex-tip-reference-v5-2025-${circuitId || normalizeDriverText(option.dataset.raceName || option.textContent)}`;
   try {
     const cachedRaw = localStorage.getItem(referenceCacheKey);
     if (cachedRaw) {
