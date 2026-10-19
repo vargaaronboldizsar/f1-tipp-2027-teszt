@@ -644,55 +644,52 @@
 </section>
 
 <section id="tipsPage" class="tips-page hidden">
-  <div class="section-head">
-    <div>
-      <h2>Easy mód – Tippjáték</h2>
-      <p>Add meg a tippedet a következő futamra!</p>
+  <div class="tips-hero">
+    <div class="tips-hero-copy">
+      <div class="tips-eyebrow"><span class="tips-live-dot"></span> APEX RACE PREDICTION</div>
+      <h1>Olvasd a versenyt.<br><span>Találd el a részleteket.</span></h1>
+      <p>Állítsd össze a tippedet, ellenőrizd az előző szezon adatait, majd mentsd el a verseny rajtja előtt.</p>
     </div>
+    <div class="tips-hero-mark" aria-hidden="true"><span>01</span><strong>APEX</strong><small>YOUR GRID. YOUR CALL.</small></div>
   </div>
 
-  <div class="panel" style="margin-bottom:20px;padding:22px">
-    <label for="tipRaceSelect">Kiválasztott futam</label>
-    <select id="tipRaceSelect" style="width:100%;padding:12px;margin:10px 0;background:#071018;color:white;border:1px solid #2b3d4b;border-radius:8px">
-      <option value="">Futam kiválasztása...</option>
-    </select>
-    <p id="tipRaceInfo">Válassz ki egy futamot a tippek megadásához.</p>
+  <div class="tips-section-heading"><div><span class="tips-kicker">01 / VERSENYHÉTVÉGE</span><h2>Válaszd ki az eseményt</h2><p>A sprint és a nagydíj külön tippként szerepel.</p></div><span class="tips-mode-pill">EASY MODE</span></div>
+  <div class="tips-race-panel">
+    <div class="tips-race-icon" aria-hidden="true">🏁</div>
+    <div class="tips-race-select-wrap"><label for="tipRaceSelect">Kiválasztott futam</label><select id="tipRaceSelect"><option value="">Futam kiválasztása...</option></select><p id="tipRaceInfo">Válassz ki egy futamot a tippek megadásához.</p></div>
   </div>
 
-  <div class="panel" style="padding:22px;margin-bottom:16px">
-    <h3>01 – Pole pozíció</h3>
-    <p>Ki indul az első helyről az időmérő után?</p>
-    <input id="tipPoleDriver" list="tipDriverOptions" autocomplete="off" placeholder="Pilóta neve vagy beceneve…" style="width:100%;box-sizing:border-box;padding:12px;background:#071018;color:white;border:1px solid #2b3d4b;border-radius:8px">
-    <datalist id="tipDriverOptions"></datalist>
-    <small style="display:block;color:var(--muted);margin-top:8px">Írhatsz teljes nevet, vezetéknevet vagy ismert becenevet is.</small>
+  <div class="tips-section-heading"><div><span class="tips-kicker">02 / A TE JÓSLATOD</span><h2>Három döntés. Egy rajtrács.</h2><p>Írd be a pilóta nevét vagy becenevét, az időt pedig add meg a megszokott formában.</p></div></div>
+  <div class="tips-input-grid">
+    <article class="tips-input-card tips-driver-card">
+      <div class="tips-card-top"><span class="tips-number">01</span><span class="tips-card-icon">▤</span></div>
+      <div class="tips-card-category">QUALIFYING</div><h3>Pole pozíció</h3><p>Ki szerzi meg az első rajtkockát?</p>
+      <label for="tipPoleDriver">A pole pilótája</label><input id="tipPoleDriver" list="tipDriverOptions" autocomplete="off" placeholder="Pl. Max, Verstappen…"><datalist id="tipDriverOptions"></datalist>
+      <small class="tips-field-help">Teljes név, vezetéknév vagy ismert becenév.</small>
+    </article>
+    <article class="tips-input-card tips-time-card">
+      <div class="tips-card-top"><span class="tips-number">02</span><span class="tips-card-icon">◷</span></div>
+      <div class="tips-card-category">LAP TIME</div><h3>Pole-idő</h3><p>Milyen időeredmény kell az első helyhez?</p>
+      <label for="tipPoleTime">Tippelt idő</label><input id="tipPoleTime" type="text" inputmode="decimal" autocomplete="off" placeholder="1:32.456" aria-describedby="tipPoleTimeHelp">
+      <small id="tipPoleTimeHelp" class="tips-field-help">Példa: 132456 vagy 1.32.456 — automatikusan formázva.</small>
+    </article>
+    <article class="tips-input-card tips-winner-card">
+      <div class="tips-card-top"><span class="tips-number">03</span><span class="tips-card-icon">♛</span></div>
+      <div class="tips-card-category">RACE DAY</div><h3>Futamgyőztes</h3><p>Ki állhat a dobogó legfelső fokára vasárnap?</p>
+      <label for="tipWinnerDriver">A győztes pilótája</label><input id="tipWinnerDriver" list="tipDriverOptions" autocomplete="off" placeholder="Pl. Lando, Norris…">
+      <small class="tips-field-help">Mentéskor a hivatalos pilótaazonosítót tároljuk.</small>
+    </article>
   </div>
 
-  <div class="panel" style="padding:22px;margin-bottom:16px">
-    <h3>02 – Pole idő</h3>
-    <p>Milyen idővel szerzi meg a pole pozíciót?</p>
-    <input id="tipPoleTime" type="text" inputmode="decimal" autocomplete="off" placeholder="Például: 1:32.456" aria-describedby="tipPoleTimeHelp" style="width:100%;box-sizing:border-box;padding:12px;background:#071018;color:white;border:1px solid #2b3d4b;border-radius:8px">
-    <small id="tipPoleTimeHelp" style="display:block;color:var(--muted);margin-top:8px">Az időt beírhatod például 132456, 1:32.456 vagy 1.32.456 formában is.</small>
+  <div id="tipReferencePanel" class="tips-reference-panel" aria-live="polite">
+    <div class="tips-reference-heading"><div><span class="tips-kicker">DATA CHECK</span><h2>Tavalyi viszonyítási alap</h2><p>Hasonlítsd össze a tippedet a tavalyi időmérővel.</p></div><span class="tips-data-badge">↗ OFFICIAL DATA</span></div>
+    <p id="tipReferenceStatus" class="tips-reference-status">Válassz futamot a tavalyi időmérő- és pole-idő betöltéséhez.</p>
+    <div id="tipReferenceData" class="tips-reference-data"></div>
+    <p id="tipPredictionWarning" class="tips-prediction-warning" role="status"></p>
   </div>
-
-  <div class="panel" style="padding:22px;margin-bottom:20px">
-    <h3>03 – Futamgyőztes</h3>
-    <p>Ki nyeri a vasárnapi futamot?</p>
-    <input id="tipWinnerDriver" list="tipDriverOptions" autocomplete="off" placeholder="Pilóta neve vagy beceneve…" style="width:100%;box-sizing:border-box;padding:12px;background:#071018;color:white;border:1px solid #2b3d4b;border-radius:8px">
-    <small style="display:block;color:var(--muted);margin-top:8px">A rendszer a mentéskor a hivatalos pilótaazonosítót tárolja.</small>
-  </div>
-
-  <div id="tipReferencePanel" class="panel" style="padding:18px;margin:18px 0" aria-live="polite">
-    <h3 style="margin-top:0">Tavalyi viszonyítási alap</h3>
-    <p id="tipReferenceStatus" style="color:var(--muted)">Válassz futamot a tavalyi időmérő- és pole-idő betöltéséhez.</p>
-    <div id="tipReferenceData" class="cards" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px"></div>
-    <p id="tipPredictionWarning" role="status" style="margin-bottom:0"></p>
-  </div>
-  <button class="primary" id="saveTipsButton">
-    Tippek mentése →
-  </button>
-  <p id="tipsStatus" role="status"></p>
+  <div class="tips-submit-row"><div><strong>Megvan a tipped?</strong><span>A mentés után bármikor visszatöltheted, amíg a tippzárás engedi.</span></div><button class="primary tips-save-button" id="saveTipsButton">Tippek mentése <span aria-hidden="true">→</span></button></div>
+  <p id="tipsStatus" class="tips-status" role="status"></p>
 </section>
-
 
      
      
