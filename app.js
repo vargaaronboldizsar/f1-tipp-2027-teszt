@@ -1049,6 +1049,8 @@ async function loadStatsGroups() {
 
   if (!select || !currentUser) return;
 
+  const previousValue = select.value;
+
   try {
     const groupsSnap = await getDocs(collection(db, 'groups'));
     const groups = [];
@@ -1066,6 +1068,34 @@ async function loadStatsGroups() {
         });
       }
     }
+
+    statsGroups = groups;
+
+    select.innerHTML = `
+      <option value="personal">Saját statisztikám</option>
+      <option value="all">Összes csoportom</option>
+      ${groups.map(g => `
+        <option value="${safeText(g.id)}">${safeText(g.name)}</option>
+      `).join('')}
+    `;
+
+    select.value = [...select.options].some(
+      option => option.value === previousValue
+    ) ? previousValue : 'personal';
+
+    if (hint) {
+      hint.textContent = groups.length
+        ? `${groups.length} csoport elérhető.`
+        : 'Még nem vagy tagja egyetlen csoportnak sem.';
+    }
+  } catch (error) {
+    console.error('Statisztikai csoportok betöltése sikertelen:', error);
+    if (hint) {
+      hint.textContent =
+        'A csoportok betöltése nem sikerült. Ellenőrizd a Firestore Rules jogosultságait.';
+    }
+  }
+}
 
     statsGroups = groups;
 
