@@ -732,6 +732,18 @@
     <div class="stats-hero-art" aria-hidden="true"><span>APEX</span></div>
     <button class="secondary stats-refresh" id="refreshStatsButton">↻ Frissítés</button>
   </div>
+ 
+ <div class="stats-group-filter panel" id="statsGroupFilter">
+  <label for="statsGroupSelect">Statisztika nézete</label>
+  <select id="statsGroupSelect" class="stats-control">
+    <option value="personal">Saját statisztikám</option>
+    <option value="all">Összes csoportom</option>
+  </select>
+  <p id="statsGroupHint">
+    Válaszd ki, melyik csoport eredményeit szeretnéd látni.
+  </p>
+</div>
+ 
   <div class="stats-section-tabs" id="statsSectionTabs" role="tablist" aria-label="Statisztikai nézetek"><button type="button" class="active" data-stats-tab="overview" role="tab" aria-selected="true">Áttekintés</button><button type="button" data-stats-tab="events" role="tab" aria-selected="false">Futamonként</button><button type="button" data-stats-tab="categories" role="tab" aria-selected="false">Kategóriák</button><button type="button" data-stats-tab="players" role="tab" aria-selected="false">Játékosok</button><button type="button" data-stats-tab="compare" role="tab" aria-selected="false">Összehasonlítás</button></div>
   <div id="statsDetailView" class="stats-detail-view hidden"></div>
   <div id="statsOverviewCards" class="stats-kpi-grid"></div>
