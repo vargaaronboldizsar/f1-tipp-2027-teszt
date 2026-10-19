@@ -1170,3 +1170,17 @@ input[type="checkbox"],input[type="radio"] { accent-color:var(--team-color); }
 .feed-only-team .feed-column:not(:first-child),.feed-only-driver .feed-column:first-child{display:none}.feed-only-team,.feed-only-driver{grid-template-columns:minmax(0,1fr)}
 @media(max-width:1000px){.news-feed-grid{grid-template-columns:1fr}.news-hero-art{right:5%;font-size:52px}}
 @media(max-width:600px){.news-hero-feed{padding:22px 17px}.news-hero-art{opacity:.18;right:3%;top:50px}.news-tabs{width:100%;display:grid;grid-template-columns:repeat(3,1fr)}.news-tabs button{padding:8px 5px;font-size:12px}.feed-cards{grid-template-columns:1fr}.feed-card-featured{grid-column:auto}.feed-card-image,.feed-card-featured .feed-card-image{height:150px}.feed-column-head{padding:12px}.feed-follow{display:none}}
+
+/* 2026-10: homepage circuit stats must remain readable at narrow widths */
+.track-panel { min-width: 0; }
+.track-panel .track-layout { grid-template-columns: minmax(0, 1.15fr) minmax(0, .9fr); gap: 14px; align-items: start; }
+.track-panel .track-layout > div { min-width: 0; }
+.track-panel .track-svg { height: 150px; min-width: 0; }
+.track-panel .track-caption { overflow-wrap: anywhere; line-height: 1.35; margin-top: 7px; }
+.track-panel .track-stats { min-width: 0; }
+.track-panel .stat-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; padding: 8px 0; border-bottom: 1px solid #203541; min-width: 0; }
+.track-panel .stat-row span { color: #93a7b7; font-size: 11px; }
+.track-panel .stat-row strong { display: block; min-width: 0; font-size: clamp(13px, 1.1vw, 17px); overflow-wrap: anywhere; }
+.bar-row.data-unavailable .bar i { opacity: .22; }
+.hero-status:empty { display: none; }
+@media (max-width: 1100px) { .track-panel .track-layout { grid-template-columns: minmax(0, 1fr); } .track-panel .track-svg { height: 130px; } .track-panel .track-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 12px; } }
