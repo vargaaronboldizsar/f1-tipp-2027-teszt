@@ -1070,44 +1070,16 @@ async function loadStatsGroups() {
     }
 
     statsGroups = groups;
-
     select.innerHTML = `
       <option value="personal">Saját statisztikám</option>
       <option value="all">Összes csoportom</option>
-      ${groups.map(g => `
-        <option value="${safeText(g.id)}">${safeText(g.name)}</option>
+      ${groups.map(group => `
+        <option value="${safeText(group.id)}">${safeText(group.name)}</option>
       `).join('')}
     `;
-
-    select.value = [...select.options].some(
-      option => option.value === previousValue
-    ) ? previousValue : 'personal';
-
-    if (hint) {
-      hint.textContent = groups.length
-        ? `${groups.length} csoport elérhető.`
-        : 'Még nem vagy tagja egyetlen csoportnak sem.';
-    }
-  } catch (error) {
-    console.error('Statisztikai csoportok betöltése sikertelen:', error);
-    if (hint) {
-      hint.textContent =
-        'A csoportok betöltése nem sikerült. Ellenőrizd a Firestore Rules jogosultságait.';
-    }
-  }
-}
-
-    statsGroups = groups;
-
-    select.innerHTML = `
-      <option value="personal">Saját statisztikám</option>
-      <option value="all">Összes csoportom</option>
-      ${groups.map(g => `
-        <option value="${safeText(g.id)}">
-          ${safeText(g.name)}
-        </option>
-      `).join('')}
-    `;
+    select.value = [...select.options].some(option => option.value === previousValue)
+      ? previousValue
+      : 'personal';
 
     if (hint) {
       hint.textContent = groups.length
@@ -1122,122 +1094,17 @@ async function loadStatsGroups() {
   }
 }
 
-const base = statsSnapshotData;
-
-const filteredUsers = statsGroupMemberUids
-  ? base.users.filter(u => statsGroupMemberUids.has(u.uid))
-  : base.users;
-
-const filteredScores = statsGroupMemberUids
-  ? base.scores.filter(s => statsGroupMemberUids.has(s.uid))
-  : base.scores;
-
-const filteredTotals = new Map(
-  filteredUsers.map(u => [u.uid, {
-    uid: u.uid,
-    name: u.username || u.displayName || u.name || 'Versenyző',
-    gp: 0,
-    sprint: 0,
-    total: 0,
-    events: 0,
-    pole: 0,
-    time: 0,
-    winner: 0,
-    bonus: 0
-  }])
-);
-
-filteredScores.forEach(s => {
-  const row = filteredTotals.get(s.uid);
-  if (!row) return;
-
-  const pts = scoreNum(s, 'total');
-  row.total += pts;
-
-  if (s.eventType === 'sprint' ||
-      String(s.raceId || '').endsWith('-sprint')) {
-    row.sprint += pts;
-  } else {
-    row.gp += pts;
-  }
-
-  row.events++;
-  row.pole += scoreNum(s, 'polePoints');
-  row.time += scoreNum(s, 'timePoints');
-  row.winner += scoreNum(s, 'winnerPoints');
-  row.bonus += scoreNum(s, 'bonus');
-});
-
-const users = filteredUsers;
-const scores = filteredScores;
-
-const leaderboard = [...filteredTotals.values()].sort(
-  (a, b) =>
-    b.total - a.total ||
-    b.gp - a.gp ||
-    a.name.localeCompare(b.name, 'hu')
-);
-
-const eventsMap = new Map();
-
-scores.forEach(s => {
-  const id = String(s.raceId || s.scoreId);
-
-  if (!eventsMap.has(id)) {
-    eventsMap.set(id, {
-      id,
-      name: s.raceName || `Futam ${id}`,
-      points: 0,
-      sprint: s.eventType === 'sprint' || id.endsWith('-sprint'),
-      scores: []
-    });
-  }
-
-  const item = eventsMap.get(id);
-  item.points += scoreNum(s, 'total');
-  item.scores.push(s);
-});
-
-const events = [...eventsMap.values()].sort(
-  (a, b) =>
-    eventSortValue({
-      raceId: a.id,
-      eventType: a.sprint ? 'sprint' : 'gp'
-    }) -
-    eventSortValue({
-      raceId: b.id,
-      eventType: b.sprint ? 'sprint' : 'gp'
-    })
-);
-
-const components = [
-  {
-    label: 'Pole pozíció',
-    color: 'red',
-    points: scores.reduce((n, s) => n + scoreNum(s, 'polePoints'), 0)
-  },
-  {
-    label: 'Időtipp',
-    color: 'blue',
-    points: scores.reduce((n, s) => n + scoreNum(s, 'timePoints'), 0)
-  },
-  {
-    label: 'Futamgyőztes',
-    color: 'gold',
-    points: scores.reduce((n, s) => n + scoreNum(s, 'winnerPoints'), 0)
-  },
-  {
-    label: 'Bónuszpontok',
-    color: 'green',
-    points: scores.reduce((n, s) => n + scoreNum(s, 'bonus'), 0)
-  }
-];
+let statsSelectedMembers = [];
 
 async function applyStatsGroupSelection() {
   const select = $('statsGroupSelect');
   const selected = select?.value || 'personal';
 
+  statsSelectedMembers = [];
+
   if (!currentUser) {
+    statsGroupMode = 'all';
+    statsSelectedGroupId = '';
     statsGroupMemberUids = null;
     return;
   }
@@ -1246,38 +1113,65 @@ async function applyStatsGroupSelection() {
     statsGroupMode = 'personal';
     statsSelectedGroupId = '';
     statsGroupMemberUids = new Set([currentUser.uid]);
-  } else {
-    const selectedGroups = selected === 'all'
-      ? statsGroups
-      : statsGroups.filter(group => group.id === selected);
 
-    statsGroupMode = selected === 'all' ? 'all' : 'group';
-    statsSelectedGroupId = selected === 'all' ? '' : selected;
-
-    const memberUids = new Set();
-
-    for (const group of selectedGroups) {
-      const membersSnap = await getDocs(
-        collection(db, 'groups', group.id, 'members')
-      );
-
-      membersSnap.forEach(memberDoc => {
-        memberUids.add(memberDoc.id);
-      });
+    let profile = {};
+    try {
+      const profileSnap = await getDoc(doc(db, 'users', currentUser.uid));
+      if (profileSnap.exists()) profile = profileSnap.data() || {};
+    } catch (error) {
+      console.warn('A saját profiladatok nem tölthetők be a statisztikához:', error.message);
     }
 
-    statsGroupMemberUids = memberUids;
+    statsSelectedMembers = [{
+      ...profile,
+      uid: currentUser.uid,
+      username: profile.username || profile.displayName || currentUser.displayName || 'Saját profil',
+      team: profile.team || 'ferrari'
+    }];
+    return;
   }
+
+  const selectedGroups = selected === 'all'
+    ? statsGroups
+    : statsGroups.filter(group => group.id === selected);
+
+  statsGroupMode = selected === 'all' ? 'all' : 'group';
+  statsSelectedGroupId = selected === 'all' ? '' : selected;
+
+  const membersByUid = new Map();
+  for (const group of selectedGroups) {
+    const membersSnap = await getDocs(collection(db, 'groups', group.id, 'members'));
+    membersSnap.forEach(memberDoc => {
+      const memberData = memberDoc.data() || {};
+      const uid = memberData.uid || memberDoc.id;
+      if (!uid) return;
+      const previous = membersByUid.get(uid) || {};
+      membersByUid.set(uid, {
+        ...previous,
+        ...memberData,
+        uid,
+        username: memberData.username || memberData.displayName || previous.username || 'Versenyző',
+        team: memberData.team || previous.team || 'ferrari'
+      });
+    });
+  }
+
+  statsSelectedMembers = [...membersByUid.values()];
+  statsGroupMemberUids = new Set(statsSelectedMembers.map(member => member.uid));
 }
 
 $('statsGroupSelect')?.addEventListener('change', async () => {
   try {
-    await applyStatsGroupSelection();
-    officialStatsPromise = null;
-    renderStatsDetail();
+    const select = $('statsGroupSelect');
+    if (select) select.disabled = true;
+    if ($('statsStatus')) $('statsStatus').textContent = 'A kiválasztott nézet adatainak betöltése…';
+    await loadScoreboard();
   } catch (error) {
     console.error('A csoportnézet frissítése sikertelen:', error);
     toast('Nem sikerült betölteni a csoport statisztikáit.');
+  } finally {
+    const select = $('statsGroupSelect');
+    if (select) select.disabled = false;
   }
 });
 
@@ -1628,6 +1522,40 @@ async function loadScoreboard() {
       return snap.docs.map(d => ({ uid: user.uid, scoreId: d.id, ...d.data() }));
     }));
     const scores = scoreResults.flat().filter(s => Number(s.year ?? s.season ?? 2026) === 2026).map(s => ({...s, total:scoreNum(s,'total'), name: users.find(u=>u.uid===s.uid)?.username || 'Versenyző'}));
+    // A globális ranglista és a statisztikai nézet külön adatforrást kap.
+    // Így a ranglista megmarad, a statisztika viszont kizárólag a kiválasztott
+    // személy vagy csoport(ok) tagjait mutatja, a publikus roster meglététől függetlenül.
+    const statsUsers = currentUser
+      ? statsSelectedMembers.map(member => {
+          const known = userMap.get(member.uid) || {};
+          return {
+            ...known,
+            ...member,
+            uid: member.uid,
+            username: member.username || member.displayName || known.username || known.displayName || 'Versenyző',
+            team: member.team || known.team || 'ferrari'
+          };
+        })
+      : users;
+    const globalUidSet = new Set(users.map(user => user.uid));
+    const statsScoreResults = await Promise.all(statsUsers.map(async user => {
+      if (globalUidSet.has(user.uid)) {
+        return scores.filter(score => score.uid === user.uid);
+      }
+      const snap = await getDocs(collection(db, 'users', user.uid, 'scores'));
+      return snap.docs
+        .map(d => ({ uid: user.uid, scoreId: d.id, ...d.data() }))
+        .filter(score => Number(score.year ?? score.season ?? 2026) === 2026)
+        .map(score => ({
+          ...score,
+          total: scoreNum(score, 'total'),
+          name: user.username || user.displayName || user.name || 'Versenyző'
+        }));
+    }));
+    const statsScores = statsScoreResults.flat().map(score => ({
+      ...score,
+      name: statsUsers.find(user => user.uid === score.uid)?.username || score.name || 'Versenyző'
+    }));
     const nameByUid = new Map(users.map(u => [
       u.uid, u.username || u.displayName || u.name || 'Versenyző'
     ]));
@@ -1707,39 +1635,111 @@ async function loadScoreboard() {
       { key:'bonus', label:'Bónuszpontok', color:'green' }
     ].map(c => ({...c, points:scores.reduce((n,s)=>n+scoreNum(s,c.key),0)}));
     const bestEventRows = scores.map(s=>({name:s.raceName||`Futam ${s.raceId||s.scoreId}`, points:scoreNum(s,'total'), player:nameByUid.get(s.uid)||'Versenyző', sprint:s.eventType==='sprint'||String(s.raceId||'').endsWith('-sprint')})).sort((a,b)=>b.points-a.points).slice(0,5);
-    statsSnapshotData = { users, scores, leaderboard, events, components: componentTotals.map(c=>({...c})).map(c=>({...c,points:Number(c.points||0)})) };
+    const statsNameByUid = new Map(statsUsers.map(user => [
+      user.uid, user.username || user.displayName || user.name || 'Versenyző'
+    ]));
+    const statsTotals = new Map(statsUsers.map(user => [user.uid, {
+      uid: user.uid,
+      name: statsNameByUid.get(user.uid),
+      team: user.team || 'ferrari',
+      gp: 0, sprint: 0, total: 0, events: 0, pole: 0, time: 0, winner: 0, bonus: 0
+    }]));
+    statsScores.forEach(score => {
+      const row = statsTotals.get(score.uid);
+      if (!row) return;
+      const points = scoreNum(score, 'total');
+      row.total += points;
+      if (score.eventType === 'sprint' || String(score.raceId || '').endsWith('-sprint')) row.sprint += points;
+      else row.gp += points;
+      row.events += 1;
+      row.pole += scoreNum(score, 'polePoints');
+      row.time += scoreNum(score, 'timePoints');
+      row.winner += scoreNum(score, 'winnerPoints');
+      row.bonus += scoreNum(score, 'bonus');
+    });
+    const statsLeaderboard = [...statsTotals.values()].sort((a, b) =>
+      b.total - a.total || b.gp - a.gp || a.name.localeCompare(b.name, 'hu')
+    );
+    const statsEventMap = new Map();
+    statsScores.forEach(score => {
+      const id = String(score.raceId || score.scoreId);
+      if (!statsEventMap.has(id)) statsEventMap.set(id, {
+        id,
+        name: score.raceName || `Futam ${id}`,
+        points: 0,
+        sprint: score.eventType === 'sprint' || id.endsWith('-sprint'),
+        scores: []
+      });
+      const event = statsEventMap.get(id);
+      event.points += scoreNum(score, 'total');
+      event.scores.push(score);
+    });
+    const statsEvents = [...statsEventMap.values()].sort((a, b) =>
+      eventSortValue({ raceId: a.id, eventType: a.sprint ? 'sprint' : 'gp' }) -
+      eventSortValue({ raceId: b.id, eventType: b.sprint ? 'sprint' : 'gp' })
+    );
+    const statsComponentTotals = [
+      { key: 'polePoints', label: 'Pole pozíció', color: 'red' },
+      { key: 'timePoints', label: 'Időtipp', color: 'blue' },
+      { key: 'winnerPoints', label: 'Futamgyőztes', color: 'gold' },
+      { key: 'bonus', label: 'Bónuszpontok', color: 'green' }
+    ].map(component => ({
+      ...component,
+      points: statsScores.reduce((sum, score) => sum + scoreNum(score, component.key), 0)
+    }));
+    const statsBestEventRows = statsScores.map(score => ({
+      name: score.raceName || `Futam ${score.raceId || score.scoreId}`,
+      points: scoreNum(score, 'total'),
+      player: statsNameByUid.get(score.uid) || 'Versenyző',
+      sprint: score.eventType === 'sprint' || String(score.raceId || '').endsWith('-sprint')
+    })).sort((a, b) => b.points - a.points).slice(0, 5);
+    const statsTotalPoints = statsScores.reduce((sum, score) => sum + scoreNum(score, 'total'), 0);
+
+    statsSnapshotData = {
+      users: statsUsers,
+      scores: statsScores,
+      leaderboard: statsLeaderboard,
+      events: statsEvents,
+      components: statsComponentTotals,
+      officialEvents: null,
+      tipsByEvent: {}
+    };
     // Pontadatok frissítésénél a megnyitott résznézet is azonnal újrarenderelődik.
     renderStatsDetail();
-    if (statsStatus) statsStatus.textContent = scores.length
-      ? `${users.length} játékos · ${scores.length} Firestore-pontrekord · 2026-os szezon`
-      : 'Még nincs megjeleníthető pontadat, vagy nincs olvasási jogosultság.';
+    if ($('statsGroupSelect')) $('statsGroupSelect').disabled = false;
+    if (statsStatus) {
+      const scopeLabel = statsGroupMode === 'personal' ? 'Saját statisztika' : statsGroupMode === 'all' ? 'Összes csoportom' : (statsGroups.find(group => group.id === statsSelectedGroupId)?.name || 'Kiválasztott csoport');
+      statsStatus.textContent = statsScores.length
+        ? `${statsUsers.length} játékos · ${statsScores.length} Firestore-pontrekord · ${scopeLabel} · 2026`
+        : `${scopeLabel}: még nincs megjeleníthető pontadat, vagy a tagokhoz nem tartozik 2026-os pontrekord.`;
+    }
     if ($('statsOverviewCards')) {
-      const top = leaderboard[0];
-      const avg = scores.length ? (totalPoints / scores.length) : 0;
-      const best = bestEventRows[0];
+      const top = statsLeaderboard[0];
+      const avg = statsScores.length ? (statsTotalPoints / statsScores.length) : 0;
+      const best = statsBestEventRows[0];
       const kpis = [
-        {label:'Összes kiosztott pont',info:'Az összes, a kiválasztott szezonban betöltött pontrekord pontértékének összege.',value:totalPoints,sub:`${scores.length} pontozott rekord`,icon:'✦',tone:'red'},
+        {label:'Összes kiosztott pont',info:'Az összes, a kiválasztott szezonban betöltött pontrekord pontértékének összege.',value:statsTotalPoints,sub:`${statsScores.length} pontozott rekord`,icon:'✦',tone:'red'},
         {label:'Élen álló játékos',info:'Az a játékos, akinek a betöltött pontrekordok alapján a legmagasabb az összpontszáma.',value:top?.name||'—',sub:top?`${top.total} ponttal`:'Nincs adat',icon:'♛',tone:'gold'},
-        {label:'Pontozott események',info:'Az adatbázisban talált különálló sprint- és nagydíj-események száma.',value:events.length,sub:`${events.filter(e=>!e.sprint).length} nagydíj · ${events.filter(e=>e.sprint).length} sprint`,icon:'▦',tone:'blue'},
+        {label:'Pontozott események',info:'Az adatbázisban talált különálló sprint- és nagydíj-események száma.',value:statsEvents.length,sub:`${statsEvents.filter(e=>!e.sprint).length} nagydíj · ${statsEvents.filter(e=>e.sprint).length} sprint`,icon:'▦',tone:'blue'},
         {label:'Átlagos pont / rekord',info:'Az összes pont osztva a betöltött pontrekordok számával; nem futamonkénti játékosátlag.',value:avg.toLocaleString('hu-HU',{maximumFractionDigits:1}),sub:best?`Legjobb egyéni eredmény: ${best.points} pont`:'A pontok alapján számítva',icon:'↗',tone:'green'}
       ];
       $('statsOverviewCards').innerHTML=kpis.map(k=>`<article class="stats-kpi stats-tone-${k.tone}"><span class="stats-kpi-icon">${k.icon}</span><div><small>${safeText(k.label)} <button class="stats-info" type="button" aria-label="${safeText(k.label)} magyarázata" data-tooltip="${safeText(k.info||'A mutató a betöltött Firestore-adatokból számolódik.')}">i</button></small><strong>${safeText(k.value)}</strong><span>${safeText(k.sub)}</span></div></article>`).join('');
     }
     if ($('statsCards')) {
-      const max = Math.max(1, ...leaderboard.map(p => p.total));
-      $('statsCards').innerHTML = leaderboard.map((p, i) => `
+      const max = Math.max(1, ...statsLeaderboard.map(p => p.total));
+      $('statsCards').innerHTML = statsLeaderboard.map((p, i) => `
         <article class="stats-player-row"><span class="stats-player-rank">${i+1}</span><div class="stats-player-info"><strong>${safeText(p.name)}</strong><div class="stats-player-bar"><i style="width:${Math.round(p.total/max*100)}%"></i></div><small>${p.events} pontrekord · átlag ${p.events ? (p.total/p.events).toLocaleString('hu-HU',{maximumFractionDigits:1}) : '0'} pont/rekord</small></div><b>${p.total}<small> pont</small></b></article>`).join('') || '<p class="stats-empty">Nincs elérhető játékosadat.</p>';
     }
     if ($('statsCategories')) {
-      const maxComp=Math.max(1,...componentTotals.map(c=>c.points));
-      const totalComponents=componentTotals.reduce((n,c)=>n+c.points,0);
+      const maxComp=Math.max(1,...statsComponentTotals.map(c=>c.points));
+      const totalComponents=statsComponentTotals.reduce((n,c)=>n+c.points,0);
       const palette={red:'#ff3157',blue:'#328cff',gold:'#ffc247',green:'#24d6a0'};
       let angle=0;
-      const stops=componentTotals.map(c=>{const share=totalComponents?c.points/totalComponents*360:0;const start=angle;angle+=share;return `${palette[c.color]} ${start}deg ${angle}deg`;}).join(', ');
-      $('statsCategories').innerHTML=`<div class="stats-donut-wrap"><div class="stats-donut" style="background:conic-gradient(${stops || '#24313d 0deg 360deg'})"><div class="stats-donut-center"><strong>${totalComponents}</strong><span>pont</span></div></div><div class="stats-donut-legend">${componentTotals.map(c=>`<div><i class="tone-${c.color}"></i><span>${safeText(c.label)} <button class="stats-info" type="button" aria-label="${safeText(c.label)} magyarázata" data-tooltip="${safeText(({ 'Pole pozíció':'A pole pozícióhoz kapcsolódó pontok összege.','Időtipp':'A pole-időre adott tippért kapott pontok összege.','Futamgyőztes':'A futamgyőztesre adott tipp pontjai.','Bónuszpontok':'A külön bónuszként tárolt pontok összege.'})[c.label]||'Az adott kategóriához rendelt pontok összege.')}">i</button></span><b>${c.points}</b></div>`).join('')}</div></div><div class="stats-category-list">${componentTotals.map(c=>`<div class="stats-category"><div class="stats-category-label"><span>${safeText(c.label)}</span><b>${c.points} <small>pont</small></b></div><div class="stats-category-track"><i class="tone-${c.color}" style="width:${Math.min(100,c.points/maxComp*100)}%"></i></div></div>`).join('')}</div>`;
+      const stops=statsComponentTotals.map(c=>{const share=totalComponents?c.points/totalComponents*360:0;const start=angle;angle+=share;return `${palette[c.color]} ${start}deg ${angle}deg`;}).join(', ');
+      $('statsCategories').innerHTML=`<div class="stats-donut-wrap"><div class="stats-donut" style="background:conic-gradient(${stops || '#24313d 0deg 360deg'})"><div class="stats-donut-center"><strong>${totalComponents}</strong><span>pont</span></div></div><div class="stats-donut-legend">${statsComponentTotals.map(c=>`<div><i class="tone-${c.color}"></i><span>${safeText(c.label)} <button class="stats-info" type="button" aria-label="${safeText(c.label)} magyarázata" data-tooltip="${safeText(({ 'Pole pozíció':'A pole pozícióhoz kapcsolódó pontok összege.','Időtipp':'A pole-időre adott tippért kapott pontok összege.','Futamgyőztes':'A futamgyőztesre adott tipp pontjai.','Bónuszpontok':'A külön bónuszként tárolt pontok összege.'})[c.label]||'Az adott kategóriához rendelt pontok összege.')}">i</button></span><b>${c.points}</b></div>`).join('')}</div></div><div class="stats-category-list">${statsComponentTotals.map(c=>`<div class="stats-category"><div class="stats-category-label"><span>${safeText(c.label)}</span><b>${c.points} <small>pont</small></b></div><div class="stats-category-track"><i class="tone-${c.color}" style="width:${Math.min(100,c.points/maxComp*100)}%"></i></div></div>`).join('')}</div>`;
     }
     if ($('pointsChart')) {
-      const chartEvents=events.slice(-24);
+      const chartEvents=statsEvents.slice(-24);
       const width=760,height=190,pad=24;
       const maxChart=Math.max(1,...chartEvents.map(e=>e.points));
       const pts=chartEvents.map((e,i)=>({x:pad+(chartEvents.length<=1?0:i*(width-pad*2)/(chartEvents.length-1)),y:height-pad-(e.points/maxChart)*(height-pad*2),e}));
@@ -1748,9 +1748,10 @@ async function loadScoreboard() {
       $('pointsChart').innerHTML=chartEvents.length ? `<div class="stats-line-chart"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Pontok eseményenkénti alakulása"><defs><linearGradient id="statsLineFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#ff3157" stop-opacity=".38"/><stop offset="100%" stop-color="#ff3157" stop-opacity="0"/></linearGradient><linearGradient id="statsLineStroke"><stop offset="0%" stop-color="#ff3157"/><stop offset="100%" stop-color="#ff8b43"/></linearGradient></defs>${[0,1,2,3].map(i=>`<line x1="${pad}" y1="${pad+i*(height-pad*2)/3}" x2="${width-pad}" y2="${pad+i*(height-pad*2)/3}" stroke="#263643" stroke-dasharray="3 5"/>`).join('')}<polygon points="${area}" fill="url(#statsLineFill)"/><polyline points="${poly}" fill="none" stroke="url(#statsLineStroke)" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>${pts.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="4" fill="${p.e.sprint?'#3f9bff':'#ff3157'}" stroke="#08121b" stroke-width="2"><title>${safeText(p.e.name)}: ${p.e.points} pont</title></circle>`).join('')}</svg></div><div class="stats-event-labels">${chartEvents.map(e=>`<span title="${safeText(e.name)}">${safeText((e.name||'').replace(/\s*(Grand Prix|Nagydíj)$/i,'').replace(/\s*[-–]\s*Sprint$/i,'').slice(0,8))}<small>${e.sprint?'SPR':'GP'}</small></span>`).join('')}</div>` : '<p class="stats-empty">A pontozott események megjelennek, amint a Firestore tartalmaz ilyen adatokat.</p>';
     }
     if ($('statsBestEvents')) {
-      $('statsBestEvents').innerHTML=bestEventRows.length?bestEventRows.map((e,i)=>`<div class="stats-best-row"><span class="stats-best-index">${String(i+1).padStart(2,'0')}</span><div><strong>${safeText(e.name)}</strong><small>${safeText(e.player)} · ${e.sprint?'Sprint':'Nagydíj'}</small></div><b>${e.points}<small> pont</small></b></div>`).join(''):'<p class="stats-empty">Még nincs pontozott esemény.</p>';
+      $('statsBestEvents').innerHTML=statsBestEventRows.length?statsBestEventRows.map((e,i)=>`<div class="stats-best-row"><span class="stats-best-index">${String(i+1).padStart(2,'0')}</span><div><strong>${safeText(e.name)}</strong><small>${safeText(e.player)} · ${e.sprint?'Sprint':'Nagydíj'}</small></div><b>${e.points}<small> pont</small></b></div>`).join(''):'<p class="stats-empty">Még nincs pontozott esemény.</p>';
     }
   } catch (error) {
+    if ($('statsGroupSelect')) $('statsGroupSelect').disabled = false;
     console.error('Ponttábla betöltési hiba:', error);
     const message = 'Nem sikerült beolvasni a pontokat. Ellenőrizd a Firestore Rules olvasási jogosultságait.';
     if (rankingStatus) rankingStatus.textContent = message + ' (' + error.message + ')';
