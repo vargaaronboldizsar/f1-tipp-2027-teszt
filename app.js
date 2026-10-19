@@ -1232,6 +1232,55 @@ const components = [
     points: scores.reduce((n, s) => n + scoreNum(s, 'bonus'), 0)
   }
 ];
+
+async function applyStatsGroupSelection() {
+  const select = $('statsGroupSelect');
+  const selected = select?.value || 'personal';
+
+  if (!currentUser) {
+    statsGroupMemberUids = null;
+    return;
+  }
+
+  if (selected === 'personal') {
+    statsGroupMode = 'personal';
+    statsSelectedGroupId = '';
+    statsGroupMemberUids = new Set([currentUser.uid]);
+  } else {
+    const selectedGroups = selected === 'all'
+      ? statsGroups
+      : statsGroups.filter(group => group.id === selected);
+
+    statsGroupMode = selected === 'all' ? 'all' : 'group';
+    statsSelectedGroupId = selected === 'all' ? '' : selected;
+
+    const memberUids = new Set();
+
+    for (const group of selectedGroups) {
+      const membersSnap = await getDocs(
+        collection(db, 'groups', group.id, 'members')
+      );
+
+      membersSnap.forEach(memberDoc => {
+        memberUids.add(memberDoc.id);
+      });
+    }
+
+    statsGroupMemberUids = memberUids;
+  }
+}
+
+$('statsGroupSelect')?.addEventListener('change', async () => {
+  try {
+    await applyStatsGroupSelection();
+    officialStatsPromise = null;
+    renderStatsDetail();
+  } catch (error) {
+    console.error('A csoportnézet frissítése sikertelen:', error);
+    toast('Nem sikerült betölteni a csoport statisztikáit.');
+  }
+});
+
 let officialStatsPromise = null;
 const officialDriverName = d => d ? `${d.givenName || ''} ${d.familyName || ''}`.trim() : '—';
 async function loadOfficialStatsData() {
@@ -1281,21 +1330,60 @@ async function loadOfficialStatsData() {
       }));
       if (start + 4 < officialEvents.length) await new Promise(resolve => setTimeout(resolve, 250));
     }
-    const tipsByEvent = {};
-    const users = statsSnapshotData.users || [];
-    let readableTipCollections = 0;
-    await Promise.all(users.map(async user => {
-      try {
-        const snap = await getDocs(collection(db, 'users', user.uid, 'tips'));
-        if (!snap.empty) readableTipCollections++;
-        snap.forEach(d => {
-          const tip = d.data() || {};
-          // A tip document is saved under the raceId as document ID; keep both forms for legacy records.
-          const keys = new Set([String(tip.raceId || ''), String(d.id || '')].filter(Boolean));
-          for (const key of keys) (tipsByEvent[key] ||= []).push({ uid:user.uid, name:user.username || user.displayName || user.name || 'Játékos', ...tip, _tipDocId:d.id });
-        });
-      } catch (error) { console.info(`Más játékos tippei nem olvashatók (${user.username || user.uid}); Firestore Rules:`, error?.code || error?.message); }
-    }));
+       const tipsByEvent = {};
+    const selected = $('statsGroupSelect')?.value || 'personal';
+
+    function addTip(tip, docId, fallbackUid = '') {
+      const uid = tip.uid || fallbackUid;
+      if (!uid) return;
+
+      const eventId = String(tip.raceId || docId || '');
+      if (!eventId) return;
+
+      const user = statsSnapshotData.users.find(u => u.uid === uid);
+
+      const entry = {
+        ...tip,
+        uid,
+        name: tip.username || user?.username ||
+          user?.displayName || user?.name || 'Játékos',
+        _tipDocId: docId
+      };
+
+      if (!tipsByEvent[eventId]) tipsByEvent[eventId] = [];
+
+      const alreadyAdded = tipsByEvent[eventId].some(
+        existing => existing.uid === uid &&
+          String(existing.raceId || existing._tipDocId) ===
+          String(entry.raceId || entry._tipDocId)
+      );
+
+      if (!alreadyAdded) {
+        tipsByEvent[eventId].push(entry);
+      }
+    }
+
+    if (selected === 'personal') {
+      if (currentUser) {
+        const snap = await getDocs(
+          collection(db, 'users', currentUser.uid, 'tips')
+        );
+
+        snap.forEach(d => addTip(d.data() || {}, d.id, currentUser.uid));
+      }
+    } else {
+      const selectedGroups = selected === 'all'
+        ? statsGroups
+        : statsGroups.filter(group => group.id === selected);
+
+      for (const group of selectedGroups) {
+        const tipsSnap = await getDocs(
+          collection(db, 'groups', group.id, 'tips')
+        );
+
+        tipsSnap.forEach(d => addTip(d.data() || {}, d.id));
+      }
+    }
     return { officialEvents, tipsByEvent };
   })().catch(error => { officialStatsPromise = null; throw error; });
   return officialStatsPromise;
@@ -1503,6 +1591,13 @@ async function loadScoreboard() {
   if (rankingStatus) rankingStatus.textContent = 'Pontok betöltése a Firestore-ból…';
   if (statsStatus) statsStatus.textContent = 'Statisztikák betöltése a Firestore-ból…';
   try {
+        if (currentUser) {
+      await loadStatsGroups();
+      await applyStatsGroupSelection();
+    } else {
+      statsGroupMemberUids = null;
+    }
+    officialStatsPromise = null;
     // Tesztprojekt: ne olvassuk le a teljes /users gyűjteményt,
     // mert az privát profiladatokat tartalmaz. A tesztfelhasználók UID-jeit
     // explicit listából használjuk, és csak a scores alkollekciót kérjük le.
