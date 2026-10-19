@@ -432,14 +432,46 @@ async function saveTips() {
       return;
     }
 
-    await setDoc(tipRef, {
-      raceId,
-      raceName: option.dataset.raceName || option.textContent,
-      poleDriver,
-      poleTime,
-      winnerDriver,
-      updatedAt: serverTimestamp()
-    });
+    const tipData = {
+  raceId,
+  raceName: option.dataset.raceName || option.textContent,
+  eventType: isSprint ? 'sprint' : 'gp',
+  poleDriver,
+  poleTime,
+  winnerDriver,
+  updatedAt: serverTimestamp()
+};
+
+// Az eredeti, privát tipp mentése.
+await setDoc(tipRef, tipData);
+
+// A tipp megosztása minden olyan csoportban,
+// amelynek a bejelentkezett játékos tagja.
+const groupsSnap = await getDocs(collection(db, 'groups'));
+
+for (const groupDoc of groupsSnap.docs) {
+  const memberRef = doc(
+    db, 'groups', groupDoc.id, 'members', currentUser.uid
+  );
+
+  const memberSnap = await getDoc(memberRef);
+  if (!memberSnap.exists()) continue;
+
+  await setDoc(
+    doc(db, 'groups', groupDoc.id, 'tips',
+        `${currentUser.uid}_${raceId}`),
+    {
+      ...tipData,
+      uid: currentUser.uid,
+      username: memberSnap.data().username || 'Versenyző',
+      groupId: groupDoc.id
+    }
+  );
+}
+
+$('tipsStatus').textContent = isSprint
+  ? 'Sprinttippek sikeresen elmentve!'
+  : 'GP-tippek sikeresen elmentve!';
 
     $('tipsStatus').textContent = isSprint
       ? 'Sprinttippek sikeresen elmentve!'
