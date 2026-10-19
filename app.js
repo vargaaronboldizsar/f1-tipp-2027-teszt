@@ -1006,6 +1006,78 @@ function eventSortValue(score) {
 }
 
 let statsSnapshotData = { users: [], scores: [], leaderboard: [], events: [], components: [], officialEvents: null, tipsByEvent: {} };
+let statsGroupMode = 'personal';
+let statsSelectedGroupId = '';
+let statsGroups = [];
+
+async function loadStatsGroups() {
+  const select = $('statsGroupSelect');
+  const hint = $('statsGroupHint');
+
+  if (!select || !currentUser) return;
+
+  try {
+    const groupsSnap = await getDocs(collection(db, 'groups'));
+    const groups = [];
+
+    for (const groupDoc of groupsSnap.docs) {
+      const memberRef = doc(
+        db, 'groups', groupDoc.id, 'members', currentUser.uid
+      );
+      const memberSnap = await getDoc(memberRef);
+
+      if (memberSnap.exists()) {
+        groups.push({
+          id: groupDoc.id,
+          name: groupDoc.data().name || 'Névtelen csoport'
+        });
+      }
+    }
+
+    statsGroups = groups;
+
+    select.innerHTML = `
+      <option value="personal">Saját statisztikám</option>
+      <option value="all">Összes csoportom</option>
+      ${groups.map(g => `
+        <option value="${safeText(g.id)}">
+          ${safeText(g.name)}
+        </option>
+      `).join('')}
+    `;
+
+    if (hint) {
+      hint.textContent = groups.length
+        ? `${groups.length} csoport elérhető.`
+        : 'Még nem vagy tagja egyetlen csoportnak sem.';
+    }
+  } catch (error) {
+    console.error('Statisztikai csoportok betöltése sikertelen:', error);
+    if (hint) {
+      hint.textContent = 'A csoportok betöltése nem sikerült. Ellenőrizd a Firestore Rules jogosultságait.';
+    }
+  }
+}
+
+$('statsGroupSelect')?.addEventListener('change', event => {
+  statsGroupMode = event.target.value;
+  statsSelectedGroupId =
+    statsGroups.some(g => g.id === statsGroupMode)
+      ? statsGroupMode
+      : '';
+
+  const hint = $('statsGroupHint');
+
+  if (hint) {
+    hint.textContent = statsGroupMode === 'personal'
+      ? 'Saját pontjaid statisztikája.'
+      : statsGroupMode === 'all'
+        ? 'Az összes csoportod statisztikája.'
+        : 'A kiválasztott csoport statisztikája.';
+  }
+
+  renderStatsDetail();
+});
 let officialStatsPromise = null;
 const officialDriverName = d => d ? `${d.givenName || ''} ${d.familyName || ''}`.trim() : '—';
 async function loadOfficialStatsData() {
