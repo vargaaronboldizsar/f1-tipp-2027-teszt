@@ -1424,8 +1424,26 @@ const components = [
           const normalizedEventKey = value => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
           const eventAliases = new Set([normalizedEventKey(ev.key), normalizedEventKey(String(ev.round)), normalizedEventKey(`${ev.round}${ev.sprint?'-sprint':''}`), normalizedEventKey(ev.raceName), normalizedEventKey(`${ev.raceName}${ev.sprint?' sprint':''}`)]);
           const eventTips = tips.filter(t => {
-            const keys = [t.raceId, t._tipDocId, t.eventId, t.raceName].map(normalizedEventKey);
-            return keys.some(k => k && eventAliases.has(k));
+            const keys = [t.raceId, t._tipDocId, t.eventId, t.raceName].map(normalizedEventKey).filter(Boolean);
+            // Elsődlegesen pontos eseményazonosítóval egyeztetünk.
+            if (keys.some(k => eventAliases.has(k))) return true;
+
+            // Régebbi tippekben a dokumentumazonosító/raceId eltérhet az API
+            // fordulóazonosítójától. Ilyenkor a mentett futamnév és az eseménytípus
+            // alapján is egyeztetünk, ékezetek és írásjelek nélkül.
+            const tipName = normalizedEventKey(t.raceName || '');
+            const raceName = normalizedEventKey(ev.raceName || '');
+            const tipLooksSprint = String(t.eventType || '').toLowerCase() === 'sprint' ||
+              keys.some(k => k.includes('sprint')) || tipName.includes('sprint');
+            const sameType = Boolean(t.eventType)
+              ? (String(t.eventType).toLowerCase() === 'sprint') === Boolean(ev.sprint)
+              : tipLooksSprint === Boolean(ev.sprint);
+            if (tipName && raceName && sameType &&
+                (tipName.includes(raceName) || raceName.includes(tipName))) return true;
+
+            // Végső kompatibilitás: az azonos fordulószámú régi numerikus ID-k.
+            const numericId = keys.find(k => /^\d+$/.test(k));
+            return Boolean(numericId && Number(numericId) === Number(ev.round) && sameType);
           });
           const canonicalByName = new Map();
           const playerNameKey = p => String(p.name || p.username || p.displayName || '').trim().toLocaleLowerCase('hu').normalize('NFD').replace(/[\u0300-\u036f]/g,'');
