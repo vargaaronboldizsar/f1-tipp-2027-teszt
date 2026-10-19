@@ -1242,7 +1242,116 @@ let activeStatsTab = 'overview';
 const statsEsc = value => safeText(String(value ?? '—'));
 function renderStatsDetail() {
   const root = $('statsDetailView'); if (!root) return;
-  const {users,scores,leaderboard,events,components}=statsSnapshotData;
+  const base = statsSnapshotData;
+
+const filteredUsers = statsGroupMemberUids
+  ? base.users.filter(u => statsGroupMemberUids.has(u.uid))
+  : base.users;
+
+const filteredScores = statsGroupMemberUids
+  ? base.scores.filter(s => statsGroupMemberUids.has(s.uid))
+  : base.scores;
+
+const filteredTotals = new Map(
+  filteredUsers.map(u => [u.uid, {
+    uid: u.uid,
+    name: u.username || u.displayName || u.name || 'Versenyző',
+    gp: 0,
+    sprint: 0,
+    total: 0,
+    events: 0,
+    pole: 0,
+    time: 0,
+    winner: 0,
+    bonus: 0
+  }])
+);
+
+filteredScores.forEach(s => {
+  const row = filteredTotals.get(s.uid);
+  if (!row) return;
+
+  const pts = scoreNum(s, 'total');
+  row.total += pts;
+
+  if (s.eventType === 'sprint' ||
+      String(s.raceId || '').endsWith('-sprint')) {
+    row.sprint += pts;
+  } else {
+    row.gp += pts;
+  }
+
+  row.events++;
+  row.pole += scoreNum(s, 'polePoints');
+  row.time += scoreNum(s, 'timePoints');
+  row.winner += scoreNum(s, 'winnerPoints');
+  row.bonus += scoreNum(s, 'bonus');
+});
+
+const users = filteredUsers;
+const scores = filteredScores;
+
+const leaderboard = [...filteredTotals.values()].sort(
+  (a, b) =>
+    b.total - a.total ||
+    b.gp - a.gp ||
+    a.name.localeCompare(b.name, 'hu')
+);
+
+const eventsMap = new Map();
+
+scores.forEach(s => {
+  const id = String(s.raceId || s.scoreId);
+
+  if (!eventsMap.has(id)) {
+    eventsMap.set(id, {
+      id,
+      name: s.raceName || `Futam ${id}`,
+      points: 0,
+      sprint: s.eventType === 'sprint' || id.endsWith('-sprint'),
+      scores: []
+    });
+  }
+
+  const item = eventsMap.get(id);
+  item.points += scoreNum(s, 'total');
+  item.scores.push(s);
+});
+
+const events = [...eventsMap.values()].sort(
+  (a, b) =>
+    eventSortValue({
+      raceId: a.id,
+      eventType: a.sprint ? 'sprint' : 'gp'
+    }) -
+    eventSortValue({
+      raceId: b.id,
+      eventType: b.sprint ? 'sprint' : 'gp'
+    })
+);
+
+const components = [
+  {
+    label: 'Pole pozíció',
+    color: 'red',
+    points: scores.reduce((n, s) => n + scoreNum(s, 'polePoints'), 0)
+  },
+  {
+    label: 'Időtipp',
+    color: 'blue',
+    points: scores.reduce((n, s) => n + scoreNum(s, 'timePoints'), 0)
+  },
+  {
+    label: 'Futamgyőztes',
+    color: 'gold',
+    points: scores.reduce((n, s) => n + scoreNum(s, 'winnerPoints'), 0)
+  },
+  {
+    label: 'Bónuszpontok',
+    color: 'green',
+    points: scores.reduce((n, s) => n + scoreNum(s, 'bonus'), 0)
+  }
+];
   const points = s => scoreNum(s,'total');
   const fmt = n => Number(n||0).toLocaleString('hu-HU',{maximumFractionDigits:1});
   const playerTotals = leaderboard;
