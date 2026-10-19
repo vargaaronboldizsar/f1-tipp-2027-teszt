@@ -1087,3 +1087,9 @@ button {
 .stats-prediction-table .stats-cell-status{margin-top:5px}
 .stats-prediction-table .stats-cell-points{font-size:10px;line-height:1.5;color:#90a8bd;white-space:normal;max-width:220px}
 @media(max-width:700px){.stats-official-result-cards{grid-template-columns:1fr}.stats-prediction-table{min-width:700px}}
+
+/* Csoportalapú statisztika-választó */
+.stats-group-filter{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 15px;border:1px solid #243744;border-radius:10px;background:linear-gradient(120deg,#0b1721,#10131a)}.stats-group-filter label{font-size:12px;font-weight:800;color:#c6d2dc}.stats-group-filter .stats-control{min-width:220px;max-width:100%;margin:0}.stats-group-filter p{flex-basis:100%;margin:0;color:#8194a4;font-size:11px}.stats-group-filter select:disabled{opacity:.8}@media(max-width:600px){.stats-group-filter{align-items:stretch;gap:8px}.stats-group-filter label{width:100%}.stats-group-filter .stats-control{width:100%;min-width:0}}
+
+/* Csoportalapú statisztika-választó */
+.stats-group-filter{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 15px;border:1px solid #243744;border-radius:10px;background:linear-gradient(120deg,#0b1721,#10131a)}.stats-group-filter label{font-size:12px;font-weight:800;color:#c6d2dc}.stats-group-filter .stats-control{min-width:220px;max-width:100%;margin:0}.stats-group-filter p{flex-basis:100%;margin:0;color:#8194a4;font-size:11px}.stats-group-filter select:disabled{opacity:.8}@media(max-width:600px){.stats-group-filter{align-items:stretch;gap:8px}.stats-group-filter label{width:100%}.stats-group-filter .stats-control{width:100%;min-width:0}}
