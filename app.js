@@ -407,7 +407,7 @@ async function loadTipReferenceData() {
   const circuitId = option.dataset.circuitId || '';
   // A 2025-ös történeti eredmények lezártak: böngészőben tartósan cache-eljük őket,
   // így ugyanazt a versenyt nem kérjük le újra minden oldalnyitáskor.
-  const referenceCacheKey = `apex-tip-reference-v2-2025-${circuitId || normalizeDriverText(option.dataset.raceName || option.textContent)}`;
+  const referenceCacheKey = `apex-tip-reference-v3-2025-${circuitId || normalizeDriverText(option.dataset.raceName || option.textContent)}`;
   try {
     const cachedRaw = localStorage.getItem(referenceCacheKey);
     if (cachedRaw) {
@@ -465,7 +465,11 @@ async function loadTipReferenceData() {
       const norm = v => normalizeDriverText(v).replace(/\b(circuit|international|grand prix|formula 1|f1)\b/g, '').trim();
       let meeting = meetings.find(m => {
         const ml = norm(m.location || ''); const ms = norm(m.circuit_short_name || '');
-        return location && (ml === norm(location) || (ml && norm(location).includes(ml)) || (ms && norm(circuitName).includes(ms)));
+        const mn = norm(m.meeting_name || ''); const mc = norm(m.meeting_official_name || '');
+        const race = norm(previousRace.raceName).replace(/\bgrand prix\b/g, '').trim();
+        return (location && (ml === norm(location) || (ml && norm(location).includes(ml)) || (ml && ml.includes(norm(location)))))
+          || (ms && norm(circuitName).includes(ms))
+          || (race && (mn.includes(race) || race.includes(mn) || mc.includes(race)));
       });
       if (!meeting && country) meeting = meetings.find(m => norm(m.country_name) === country && norm(m.meeting_name).includes(norm(previousRace.raceName).replace(/\bgrand prix\b/g,'')));
       if (!meeting && country) {
@@ -510,9 +514,13 @@ async function loadTipReferenceData() {
     status.textContent = `2025 · ${previousRace.raceName || option.textContent} · időmérő: Jolpica · szabadedzés: OpenF1`; 
     data.innerHTML = `<div class="panel" style="padding:12px"><small style="color:var(--muted)">Tavalyi pole-pilóta</small><strong style="display:block;margin-top:6px">${safeText(poleName)}</strong></div><div class="panel" style="padding:12px"><small style="color:var(--muted)">Hivatalos pole-idő</small><strong style="display:block;margin-top:6px">${safeText(poleTime || 'Nincs adat')}</strong></div><div class="panel" style="padding:12px"><small style="color:var(--muted)">Legjobb szabadedzés (${practiceLabel || 'FP'})</small><strong style="display:block;margin-top:6px">${safeText(bestTime || 'Nincs adat')}</strong><small>${safeText(bestName)}</small></div><div class="panel" style="padding:12px"><small style="color:var(--muted)">Pole és szabadedzés különbsége</small>${deltaHtml}</div>`;
     if (warning && poleTime) warning.dataset.referenceMs = String(poleMs || '');
-    try {
-      localStorage.setItem(referenceCacheKey, JSON.stringify({ status: status.textContent, html: data.innerHTML, referenceMs: poleMs || null, savedAt: new Date().toISOString() }));
-    } catch (cacheError) { console.info('A DATA CHECK eredmény nem menthető cache-be.', cacheError); }
+    // Csak akkor cache-eljük a teljes blokkot, ha a szabadedzés valóban betöltődött.
+    // A korábbi verzió a hibás/üres FP-eredményt is eltárolta, ezért az örökre Nincs adatként jelent meg.
+    if (bestTime && bestName !== '—') {
+      try {
+        localStorage.setItem(referenceCacheKey, JSON.stringify({ status: status.textContent, html: data.innerHTML, referenceMs: poleMs || null, savedAt: new Date().toISOString() }));
+      } catch (cacheError) { console.info('A DATA CHECK eredmény nem menthető cache-be.', cacheError); }
+    }
     updateTipPredictionWarning();
   } catch (error) {
     if (requestId !== tipReferenceRequest) return;
