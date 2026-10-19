@@ -1096,6 +1096,48 @@ async function loadStatsGroups() {
 
 let statsSelectedMembers = [];
 
+// A régebbi tippek eredetileg csak a saját users/{uid}/tips alatt voltak.
+// A csoporttagok privát tippjeit a Firestore Rules helyesen nem engedi másnak olvasni,
+// ezért minden játékos a saját korábbi tippjeit másolja át a saját csoportjai tipptárolójába.
+// Így a csoport többi tagja a groups/{groupId}/tips alatt olvashatja azokat.
+async function syncMyHistoricalTipsToGroups() {
+  if (!currentUser || !statsGroups.length) return;
+
+  try {
+    const personalTipsSnap = await getDocs(
+      collection(db, 'users', currentUser.uid, 'tips')
+    );
+    if (personalTipsSnap.empty) return;
+
+    for (const group of statsGroups) {
+      const memberSnap = await getDoc(
+        doc(db, 'groups', group.id, 'members', currentUser.uid)
+      );
+      if (!memberSnap.exists()) continue;
+      const memberData = memberSnap.data() || {};
+
+      for (const tipDoc of personalTipsSnap.docs) {
+        const groupTipRef = doc(
+          db, 'groups', group.id, 'tips', `${currentUser.uid}_${tipDoc.id}`
+        );
+        const groupTipSnap = await getDoc(groupTipRef);
+        // A már megosztott rekordot nem írjuk felül; a saveTips kezeli a frissítést.
+        if (groupTipSnap.exists()) continue;
+
+        await setDoc(groupTipRef, {
+          ...(tipDoc.data() || {}),
+          uid: currentUser.uid,
+          username: memberData.username || memberData.displayName || currentUser.displayName || 'Versenyző',
+          groupId: group.id
+        });
+      }
+    }
+  } catch (error) {
+    // A szinkronizálás hibája ne állítsa le a saját statisztika betöltését.
+    console.warn('A régi tippek csoportos megosztása nem teljes:', error.message);
+  }
+}
+
 async function applyStatsGroupSelection() {
   const select = $('statsGroupSelect');
   const selected = select?.value || 'personal';
@@ -1505,6 +1547,7 @@ async function loadScoreboard() {
   try {
         if (currentUser) {
       await loadStatsGroups();
+      await syncMyHistoricalTipsToGroups();
       await applyStatsGroupSelection();
     } else {
       statsGroupMemberUids = null;
