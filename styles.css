@@ -1120,3 +1120,34 @@ button {
 #tipsPage .tips-weather-day>p{margin:7px 0 0;color:#d0d8e4;font-size:11px;line-height:1.5}
 #tipsPage .tips-weather-day .tips-weather-condition{color:#fff;font-size:13px;margin-top:0}
 @media(max-width:600px){#tipsPage .tips-weekend-weather-grid{grid-template-columns:1fr}}
+
+/* APEX: a kedvenc csapat témája az egész felületen */
+:root { --team-color: var(--accent); --team-color-soft: color-mix(in srgb,var(--team-color) 13%,transparent); --team-color-border: color-mix(in srgb,var(--team-color) 55%,transparent); }
+.nav button.active,.nav button:hover {
+  background: linear-gradient(100deg, color-mix(in srgb,var(--team-color) 34%,#071018), color-mix(in srgb,var(--team-color) 12%,#070d13));
+  border-color: var(--team-color-border);
+  box-shadow: inset 3px 0 0 var(--team-color), 0 0 18px var(--team-color-soft);
+  color:#fff;
+}
+.brand-mark,.f1-mark { color:var(--team-color); }
+.primary,.hero-actions .primary,.news-official-link {
+  background:var(--team-color); border-color:var(--team-color); color:#fff;
+}
+.primary:hover,.news-official-link:hover { filter:brightness(1.12); }
+.secondary:hover,.nav button:focus-visible { border-color:var(--team-color); }
+.panel:focus-within,.profile-subpanel:focus-within { border-color:var(--team-color-border); }
+input:focus,select:focus,textarea:focus,button:focus-visible { outline-color:var(--team-color); }
+input[type="checkbox"],input[type="radio"] { accent-color:var(--team-color); }
+.status-pill,.active .status-pill,.helmet-tabs button.active { border-color:var(--team-color); }
+.helmet-tabs button.active { background:color-mix(in srgb,var(--team-color) 24%,#10151c); }
+.score-detail-toggle:hover,.detail-chevron,.score-table td:last-child { color:var(--team-color); }
+.news-page { display:grid; gap:16px; padding-top:22px; }
+.news-hero { min-height:250px; padding:34px; display:flex; align-items:center; background:radial-gradient(ellipse at 90% 10%,var(--team-color-soft),transparent 45%),linear-gradient(135deg,#0b1720,#050a0e); }
+.news-hero-copy { max-width:720px; }
+.news-hero h1 { margin:10px 0; font-size:clamp(36px,5vw,58px); line-height:1; }
+.news-hero p,.news-source-card p { color:#c4d0dc; max-width:720px; }
+.news-official-link { display:inline-flex; margin-top:10px; text-decoration:none; }
+.news-source-card { padding-bottom:12px; }
+.news-text-link { display:inline-flex; margin-top:8px; text-decoration:none; }
+.news-note { font-size:12px; color:var(--muted)!important; border-left:3px solid var(--team-color); padding-left:12px; }
+@media(max-width:760px){ .news-hero { padding:24px 17px; min-height:220px; } }
