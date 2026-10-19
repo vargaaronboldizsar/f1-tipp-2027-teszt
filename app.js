@@ -250,11 +250,14 @@ const trackProfiles = {
   'losail': { length: 5.419, corners: 16, laps: 57, traits: [3, 4, 2, 3], traitText: ['Magas', 'Magas', 'Közepes', 'Közepes'], lat: 25.49, lon: 51.4542, timezone: 'Asia/Qatar', fact: 'Losail gyors kanyarjai nagy terhelést adnak a gumiknak.' },
   'yas_marina': { length: 5.281, corners: 16, laps: 58, traits: [3, 2, 3, 3], traitText: ['Magas', 'Közepes', 'Magas', 'Közepes'], lat: 24.4672, lon: 54.6031, timezone: 'Asia/Dubai', fact: 'A Yas Marina-i futam naplementében indul, ezért a pályahőmérséklet a verseny alatt is változik.' }
 };
-function profileFor(race) { const id = (race.Circuit?.circuitId || '').toLowerCase(); return trackProfiles[id] || { length: null, corners: null, laps: null, traits: [2, 2, 2, 2], traitText: ['Közepes', 'Közepes', 'Közepes', 'Közepes'], lat: Number(race.Circuit?.Location?.lat) || 0, lon: Number(race.Circuit?.Location?.long) || 0, timezone: 'auto', fact: 'A pályaprofil részletes adatait a Firestore races gyűjteményében lehet megadni.' }; }
+function profileFor(race) { const id = (race.Circuit?.circuitId || '').toLowerCase(); return trackProfiles[id] || { length: null, corners: null, laps: null, traits: null, traitText: null, lat: Number(race.Circuit?.Location?.lat) || 0, lon: Number(race.Circuit?.Location?.long) || 0, timezone: 'auto', fact: 'Ehhez a pályához még nincs ellenőrzött profiladat.' }; }
 function setTraitRows(profile) {
   const rows = document.querySelectorAll('.bars .bar-row'); rows.forEach((row, i) => {
-    const n = profile.traits?.[i] ?? 2; row.querySelectorAll('.bar i').forEach((el, j) => el.classList.toggle('on', j < n)); const label = row.querySelector('em'); if (label)
-      label.textContent = profile.traitText?.[i] || 'Közepes';
+    const n = Array.isArray(profile.traits) ? profile.traits[i] : null;
+    row.querySelectorAll('.bar i').forEach((el, j) => el.classList.toggle('on', Number.isFinite(n) && j < n));
+    const label = row.querySelector('em');
+    if (label) label.textContent = profile.traitText?.[i] || 'Nincs adat';
+    row.classList.toggle('data-unavailable', !Number.isFinite(n));
   });
 }
 function formatRaceDate(race) { const d = new Date(`${race.date}T${race.time || '12:00:00Z'}`); return d.toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }); }
@@ -292,9 +295,11 @@ async function loadRace() {
   $('heroTitle').textContent = (race.heroTitle || race.name).toUpperCase();
   $('heroCircuit').textContent = race.circuit;
   $('heroDate').textContent = race.dateLabel || formatRaceDate(next);
-  $('heroStatus').textContent = `2026-os szezon · ${next.round ? 'Forduló ' + next.round : 'Következő futam'} · Jolpica F1 API`;
+  $('heroStatus').textContent = '';
+  $('heroStatus').setAttribute('aria-hidden', 'true');
   $('trackLength').textContent = race.length ? Number(race.length).toLocaleString('hu-HU', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' km' : '—';
   $('trackCorners').textContent = race.corners ?? '—';
+  const lapsEl = $('trackLaps'); if (lapsEl) lapsEl.textContent = race.laps ?? '—';
   $('raceDistance').textContent = (race.length && race.laps) ? (race.length * race.laps).toLocaleString('hu-HU', { maximumFractionDigits: 3 }) + ' km' : '—';
   if (race.heroImageUrl) {
     document.querySelector('.hero').style.backgroundImage = `linear-gradient(90deg,#020609 0%,#03090def 27%,#07101870 62%,#050a0e30),linear-gradient(0deg,#050a0e 0%,transparent 35%),url("${race.heroImageUrl}")`;
@@ -1454,7 +1459,7 @@ function goTips() {
 });
 
 $('raceDetailsButton').addEventListener('click', () => {
-  toast('A versenyhétvége részleteinek bekötése később következik.');
+  openSection('calendar');
 });
 
 
