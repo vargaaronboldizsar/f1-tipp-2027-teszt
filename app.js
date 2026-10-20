@@ -391,18 +391,7 @@ async function loadRace() {
   });
   setTraitRows(race);
   $('interestingFact').textContent = 'ⓘ ' + (race.fact || 'A pálya forrásolt összefoglalója a Pirelli leírása alapján jelenik meg.');
-  if (race.tyres) {
-    $('hardCompound').textContent = race.tyres.hard || '—';
-    $('mediumCompound').textContent = race.tyres.medium || '—';
-    $('softCompound').textContent = race.tyres.soft || '—';
-    $('tyreSource').textContent = race.tyreSource || 'Gumikeverék: Firestore versenyadat';
-  }
-  else {
-    $('hardCompound').textContent = 'Nincs adat';
-    $('mediumCompound').textContent = 'Nincs adat';
-    $('softCompound').textContent = 'Nincs adat';
-    $('tyreSource').textContent = 'A pontos C1–C5 kiosztást a races/2026-' + circuitId + ' Firestore-dokumentumban add meg, ha a hivatalos adat elérhető.';
-  }
+  renderTyreShowcase(race, circuitId);
   loadWeather(race, next).catch(e => { console.warn('Weather error', e); $('weatherSummary').textContent = 'Az előrejelzés jelenleg nem érhető el.'; $('weatherSource').textContent = 'Forrás: Open-Meteo · később próbáld újra.'; });
   updateCountdown(race.date);
   document.querySelectorAll('[data-category]').forEach(b => {
@@ -410,6 +399,42 @@ async function loadRace() {
       small.textContent = 'Ki nyeri a ' + race.name + '-t?';
   });
 }
+function renderTyreShowcase(race, circuitId) {
+  const entries = [
+    ['hard', race.tyres?.hard],
+    ['medium', race.tyres?.medium],
+    ['soft', race.tyres?.soft]
+  ];
+  const codes = [];
+  const compoundCode = value => {
+    const match = String(value || '').toUpperCase().match(/C\s*([1-6])/);
+    return match ? `C${match[1]}` : '';
+  };
+  for (const [type, value] of entries) {
+    const code = compoundCode(value);
+    const label = $(type + 'Compound');
+    if (label) label.textContent = code || '—';
+    if (code) codes.push(code);
+    const arrowHost = $(type + 'Arrows');
+    if (arrowHost) {
+      const n = code ? Number(code.slice(1)) : 0;
+      arrowHost.innerHTML = code
+        ? `${n > 1 ? '<span class="arrow-left" title="Lágyabb irány">‹</span>' : ''}<span class="arrow-code">${code}</span>${n < 6 ? '<span class="arrow-right" title="Keményebb skála vége felé">›</span>' : ''}`
+        : '<span class="arrow-code muted">—</span>';
+    }
+  }
+  document.querySelectorAll('.compound-codes [data-compound]').forEach(el => {
+    el.classList.toggle('is-selected', codes.includes(el.dataset.compound));
+    el.classList.toggle('is-hard', compoundCode(race.tyres?.hard) === el.dataset.compound);
+    el.classList.toggle('is-medium', compoundCode(race.tyres?.medium) === el.dataset.compound);
+    el.classList.toggle('is-soft', compoundCode(race.tyres?.soft) === el.dataset.compound);
+  });
+  const source = $('tyreSource');
+  if (source) source.textContent = race.tyres
+    ? (race.tyreSource || 'Hivatalos hétvégi gumiválasztás · Firestore')
+    : 'A hivatalos hétvégi gumiválasztás még nem érhető el.';
+}
+
 async function loadCircuitSvg(circuitId, circuitName) {
   const host = document.querySelector('.track-panel .track-layout > div:first-child');
   if (!host) return;
