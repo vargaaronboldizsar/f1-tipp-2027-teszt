@@ -415,13 +415,6 @@ function renderTyreShowcase(race, circuitId) {
     const label = $(type + 'Compound');
     if (label) label.textContent = code || '—';
     if (code) codes.push(code);
-    const arrowHost = $(type + 'Arrows');
-    if (arrowHost) {
-      const n = code ? Number(code.slice(1)) : 0;
-      arrowHost.innerHTML = code
-        ? `${n > 1 ? '<span class="arrow-left" title="Lágyabb irány">‹</span>' : ''}<span class="arrow-code">${code}</span>${n < 6 ? '<span class="arrow-right" title="Keményebb skála vége felé">›</span>' : ''}`
-        : '<span class="arrow-code muted">—</span>';
-    }
   }
   document.querySelectorAll('.compound-codes [data-compound]').forEach(el => {
     el.classList.toggle('is-selected', codes.includes(el.dataset.compound));
