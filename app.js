@@ -257,19 +257,19 @@ async function setTraitRows(profile) {
   const normalizeCircuitId = value => String(value || '').trim().toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
   const aliases = {
-    melbourne: 'albert_park', australian: 'albert_park', australia: 'albert_park',
-    china: 'shanghai', chinese: 'shanghai', japan: 'suzuka', japanese: 'suzuka',
-    canada: 'villeneuve', canadian: 'villeneuve', montreal: 'villeneuve',
+    albert_park: 'albert_park', melbourne: 'albert_park', australian: 'albert_park', australia: 'albert_park',
+    shanghai: 'shanghai', china: 'shanghai', chinese: 'shanghai', suzuka: 'suzuka', japan: 'suzuka', japanese: 'suzuka',
+    villeneuve: 'villeneuve', canada: 'villeneuve', canadian: 'villeneuve', montreal: 'villeneuve',
     spain: 'catalunya', spanish: 'catalunya', barcelona: 'catalunya',
     austria: 'red_bull_ring', austrian: 'red_bull_ring', spielberg: 'red_bull_ring',
-    belgium: 'spa', belgian: 'spa', spa_francorchamps: 'spa',
-    italy: 'monza', italian: 'monza', netherlands: 'zandvoort', dutch: 'zandvoort',
+    spa: 'spa', belgium: 'spa', belgian: 'spa', spa_francorchamps: 'spa',
+    monza: 'monza', italy: 'monza', italian: 'monza', zandvoort: 'zandvoort', netherlands: 'zandvoort', dutch: 'zandvoort',
     madrid: 'madring', united_states: 'americas', us: 'americas', usa: 'americas', austin: 'americas', cota: 'americas',
     mexico: 'rodriguez', mexico_city: 'rodriguez', mexican: 'rodriguez',
     singapore: 'marina_bay', singaporean: 'marina_bay',
     las_vegas: 'vegas', vegas_strip: 'vegas', qatar: 'losail', lusail: 'losail',
     abu_dhabi: 'yas_marina', yas_island: 'yas_marina', brazil: 'interlagos', sao_paulo: 'interlagos',
-    azerbaijan: 'baku', baku_city: 'baku', hungary: 'hungaroring', hungarian: 'hungaroring',
+    azerbaijan: 'baku', baku_city: 'baku', hungaroring: 'hungaroring', hungary: 'hungaroring', hungarian: 'hungaroring',
     miami_gardens: 'miami'
   };
   const nameCandidates = [profile.circuit, profile.Circuit?.circuitName, profile.name, profile.raceName, profile.grandPrixNameHu];
@@ -297,7 +297,7 @@ async function setTraitRows(profile) {
         if (storedNames.some(stored => wantedNames.some(wanted => stored === wanted || stored.includes(wanted) || wanted.includes(stored)))) data = candidate;
       });
     }
-  } catch (e) { console.info('Firestore circuit profile unavailable', e); }
+  } catch (e) { console.error('APEX circuitProfiles olvasási hiba:', e); }
   const highlights = Array.isArray(data?.highlights) ? data.highlights.slice(0, 4) : [];
   rows.forEach((row, i) => {
     const trait = highlights[i];
