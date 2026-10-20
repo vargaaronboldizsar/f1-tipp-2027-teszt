@@ -266,6 +266,7 @@ async function loadRace() {
   $('heroStatus').textContent = `2026-os szezon · ${next.round ? 'Forduló ' + next.round : 'Következő futam'} · Firestore`;
   $('trackLength').textContent = race.length ? Number(race.length).toLocaleString('hu-HU', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' km' : '—';
   $('trackCorners').textContent = race.corners ?? '—';
+  $('trackLaps').textContent = race.laps ?? '—';
   $('raceDistance').textContent = (race.length && race.laps) ? (race.length * race.laps).toLocaleString('hu-HU', { maximumFractionDigits: 3 }) + ' km' : '—';
   if (race.heroImageUrl) {
     document.querySelector('.hero').style.backgroundImage = `linear-gradient(90deg,#020609 0%,#03090def 27%,#07101870 62%,#050a0e30),linear-gradient(0deg,#050a0e 0%,transparent 35%),url("${race.heroImageUrl}")`;
@@ -329,12 +330,28 @@ async function loadCircuitSvg(circuitId, circuitName) {
   svg.setAttribute('aria-label', `${circuitName || circuitId} pályarajza`);
   svg.style.width = '100%';
   svg.style.height = 'auto';
+  svg.style.maxHeight = '190px';
+  svg.style.objectFit = 'contain';
   svg.style.display = 'block';
-  const current = host.querySelector('.track-svg');
-  if (current) current.replaceWith(document.importNode(svg, true));
-  else host.prepend(document.importNode(svg, true));
-  const caption = host.querySelector('.track-caption');
-  if (caption) caption.textContent = String(match.name || match.circuitName || match.trackName || circuitName || circuitId);
+
+  // A pályadoboz teljes tartalmát újraépítjük, így a régi statikus SVG
+  // és a korábbi betöltési placeholder nem maradhat egymás alatt.
+  const importedSvg = document.importNode(svg, true);
+  const caption = document.createElement('div');
+  caption.className = 'track-caption';
+  caption.textContent = String(match.name || match.circuitName || match.trackName || circuitName || circuitId);
+  host.replaceChildren(importedSvg, caption);
+
+  // A pályarajz-dokumentum adataiból is próbáljuk feloldani a kanyarszámot.
+  const cornerCount = match.corners ?? match.cornerCount ?? match.turns ?? match.numberOfCorners;
+  if (cornerCount != null && $('trackCorners')) $('trackCorners').textContent = cornerCount;
+  const lapCount = match.laps ?? match.lapCount ?? match.raceLaps;
+  if (lapCount != null && $('trackLaps')) {
+    $('trackLaps').textContent = lapCount;
+    const lengthText = $('trackLength')?.textContent || '';
+    const length = Number(lengthText.replace(/\s*km/i, '').replace(/\./g, '').replace(',', '.').trim());
+    if (Number.isFinite(length) && length > 0) $('raceDistance').textContent = (length * Number(lapCount)).toLocaleString('hu-HU', { maximumFractionDigits: 3 }) + ' km';
+  }
 }
 
 async function loadWeather(race, apiRace) {
