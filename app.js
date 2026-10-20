@@ -222,10 +222,15 @@ const trackProfiles = {
   'yas_marina': { length: 5.281, corners: 16, laps: 58, traits: [3, 2, 3, 3], traitText: ['Magas', 'Közepes', 'Magas', 'Közepes'], lat: 24.4672, lon: 54.6031, timezone: 'Asia/Dubai', fact: 'A Yas Marina-i futam naplementében indul, ezért a pályahőmérséklet a verseny alatt is változik.' }
 };
 function profileFor(race) { const id = (race.Circuit?.circuitId || '').toLowerCase(); return trackProfiles[id] || { length: null, corners: null, laps: null, traits: [2, 2, 2, 2], traitText: ['Közepes', 'Közepes', 'Közepes', 'Közepes'], lat: Number(race.Circuit?.Location?.lat) || 0, lon: Number(race.Circuit?.Location?.long) || 0, timezone: 'auto', fact: 'A pályaprofil részletes adatait a Firestore races gyűjteményében lehet megadni.' }; }
+// Csak forrással igazolt pályajellemző jelenhet meg pontszámként.
+// A korábbi, beégetett 1–4 értékekhez nem tartozott ellenőrizhető forrás,
+// ezért egyelőre nem rajzolunk megtévesztő értékelést.
 function setTraitRows(profile) {
-  const rows = document.querySelectorAll('.bars .bar-row'); rows.forEach((row, i) => {
-    const n = profile.traits?.[i] ?? 2; row.querySelectorAll('.bar i').forEach((el, j) => el.classList.toggle('on', j < n)); const label = row.querySelector('em'); if (label)
-      label.textContent = profile.traitText?.[i] || 'Közepes';
+  const rows = document.querySelectorAll('.bars .bar-row');
+  rows.forEach(row => {
+    row.querySelectorAll('.bar i').forEach(el => el.classList.remove('on'));
+    const label = row.querySelector('em');
+    if (label) label.textContent = 'Nincs ellenőrzött adat';
   });
 }
 function formatRaceDate(race) { const d = new Date(`${race.date}T${race.time || '12:00:00Z'}`); return d.toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }); }
