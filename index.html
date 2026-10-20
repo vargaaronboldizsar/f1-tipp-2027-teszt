@@ -379,30 +379,16 @@
         </span>
        </div>
        <div class="panel-body">
-        <div class="tyres tyre-showcase">
-         <div class="tyre hard" data-tyre="hard">
-          <strong>HARD</strong>
-          <small id="hardCompound">—</small>
-          <div class="tyre-wheel" aria-hidden="true"><span class="tyre-rim"></span><span class="tyre-hub"></span></div>
-          <div class="tyre-arrows" id="hardArrows" aria-label="Kemény keverék tartománya"></div>
-         </div>
-         <div class="tyre medium" data-tyre="medium">
-          <strong>MEDIUM</strong>
-          <small id="mediumCompound">—</small>
-          <div class="tyre-wheel" aria-hidden="true"><span class="tyre-rim"></span><span class="tyre-hub"></span></div>
-          <div class="tyre-arrows" id="mediumArrows" aria-label="Közepes keverék tartománya"></div>
-         </div>
-         <div class="tyre soft" data-tyre="soft">
-          <strong>SOFT</strong>
-          <small id="softCompound">—</small>
-          <div class="tyre-wheel" aria-hidden="true"><span class="tyre-rim"></span><span class="tyre-hub"></span></div>
-          <div class="tyre-arrows" id="softArrows" aria-label="Lágy keverék tartománya"></div>
-         </div>
+        <div class="tyre-labels" aria-label="A három slick gumikeverék">
+         <div class="tyre-label hard"><strong>HARD</strong><small id="hardCompound">—</small></div>
+         <div class="tyre-label medium"><strong>MEDIUM</strong><small id="mediumCompound">—</small></div>
+         <div class="tyre-label soft"><strong>SOFT</strong><small id="softCompound">—</small></div>
         </div>
+        <img class="tyre-lineup-photo" src="assets/tyre-lineup.jpg" alt="Pirelli Formula 1 slick gumik: Hard, Medium és Soft" loading="lazy">
         <div class="compound-scale" aria-label="A C1 a legkeményebb, a C6 a leglágyabb keverék">
-         <div class="scale-hard-arrows" aria-hidden="true">◀ ◀ ◀</div>
+         <span class="scale-end-label">KEMÉNYEBB</span>
          <div class="compound-codes"><span data-compound="C1">C1</span><span data-compound="C2">C2</span><span data-compound="C3">C3</span><span data-compound="C4">C4</span><span data-compound="C5">C5</span><span data-compound="C6">C6</span></div>
-         <div class="scale-soft-arrows" aria-hidden="true">▶ ▶ ▶</div>
+         <span class="scale-end-label scale-end-label-soft">LÁGYABB</span>
         </div>
         <div class="tyre-note" id="tyreSource">A hétvége hivatalos gumiválasztása betöltés alatt.</div>
        </div>
@@ -544,7 +530,7 @@
           GUMIK
          </small>
          <strong id="statsTyres">
-          C1&ndash;C5
+          C1&ndash;C6
          </strong>
          <p>
           hivatalos kioszt&aacute;s szerint
