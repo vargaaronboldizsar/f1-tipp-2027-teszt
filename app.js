@@ -214,17 +214,25 @@ $('logoutButton').addEventListener('click', async () => {
 // -----------------------------------------------------------------------------
 const API_BASE = 'https://api.jolpi.ca/ergast/f1';
 const trackProfiles = {
-  'americas': { length: 5.513, corners: 20, laps: 56, traits: [2, 3, 3, 4], traitText: ['Közepes', 'Magas', 'Magas', 'Hosszú'], lat: 30.1328, lon: -97.6411, timezone: 'America/Chicago', fact: 'A Circuit of The Americas pályán jelentős szintkülönbség és többféle kanyartípus teszi változatossá a beállításokat.' },
-  'rodriguez': { length: 4.304, corners: 17, laps: 71, traits: [3, 2, 3, 4], traitText: ['Magas', 'Közepes', 'Magas', 'Hosszú'], lat: 19.4042, lon: -99.0907, timezone: 'America/Mexico_City', fact: 'A pálya több mint 2 200 méterrel a tengerszint felett fekszik, ami komoly kihívás a hűtésnek és az aerodinamikának.' },
-  'interlagos': { length: 4.309, corners: 15, laps: 71, traits: [3, 4, 4, 3], traitText: ['Magas', 'Magas', 'Magas', 'Közepes'], lat: -23.7036, lon: -46.6997, timezone: 'America/Sao_Paulo', fact: 'Interlagos rövid, hullámzó pálya, ahol az időjárás gyorsan megváltozhat.' },
-  'vegas': { length: 6.201, corners: 17, laps: 50, traits: [1, 2, 3, 4], traitText: ['Alacsony', 'Közepes', 'Magas', 'Hosszú'], lat: 36.1147, lon: -115.1728, timezone: 'America/Los_Angeles', fact: 'A Las Vegas-i pálya hosszú egyenesei és hűvös éjszakai körülményei különleges gumikezelést igényelnek.' },
-  'losail': { length: 5.419, corners: 16, laps: 57, traits: [3, 4, 2, 3], traitText: ['Magas', 'Magas', 'Közepes', 'Közepes'], lat: 25.49, lon: 51.4542, timezone: 'Asia/Qatar', fact: 'Losail gyors kanyarjai nagy terhelést adnak a gumiknak.' },
-  'yas_marina': { length: 5.281, corners: 16, laps: 58, traits: [3, 2, 3, 3], traitText: ['Magas', 'Közepes', 'Magas', 'Közepes'], lat: 24.4672, lon: 54.6031, timezone: 'Asia/Dubai', fact: 'A Yas Marina-i futam naplementében indul, ezért a pályahőmérséklet a verseny alatt is változik.' }
+  // A pályaadatok közül csak a menetrend/API által szolgáltatott alapadatokat tartjuk meg.
+  // A négy mérnöki jellemzőhöz nincs hiteles, egységes 1–4-es forrásérték, ezért nem pontozzuk őket.
+  'americas': { length: 5.513, corners: 20, laps: 56, lat: 30.1328, lon: -97.6411, timezone: 'America/Chicago' },
+  'rodriguez': { length: 4.304, corners: 17, laps: 71, lat: 19.4042, lon: -99.0907, timezone: 'America/Mexico_City' },
+  'interlagos': { length: 4.309, corners: 15, laps: 71, lat: -23.7036, lon: -46.6997, timezone: 'America/Sao_Paulo' },
+  'vegas': { length: 6.201, corners: 17, laps: 50, lat: 36.1147, lon: -115.1728, timezone: 'America/Los_Angeles' },
+  'losail': { length: 5.419, corners: 16, laps: 57, lat: 25.49, lon: 51.4542, timezone: 'Asia/Qatar' },
+  'yas_marina': { length: 5.281, corners: 16, laps: 58, lat: 24.4672, lon: 54.6031, timezone: 'Asia/Dubai' }
 };
-function profileFor(race) { const id = (race.Circuit?.circuitId || '').toLowerCase(); return trackProfiles[id] || { length: null, corners: null, laps: null, traits: [2, 2, 2, 2], traitText: ['Közepes', 'Közepes', 'Közepes', 'Közepes'], lat: Number(race.Circuit?.Location?.lat) || 0, lon: Number(race.Circuit?.Location?.long) || 0, timezone: 'auto', fact: 'A pályaprofil részletes adatait a Firestore races gyűjteményében lehet megadni.' }; }
-// Csak forrással igazolt pályajellemző jelenhet meg pontszámként.
-// A korábbi, beégetett 1–4 értékekhez nem tartozott ellenőrizhető forrás,
-// ezért egyelőre nem rajzolunk megtévesztő értékelést.
+function profileFor(race) {
+  const id = (race.Circuit?.circuitId || '').toLowerCase();
+  return trackProfiles[id] || {
+    length: null, corners: null, laps: null,
+    lat: Number(race.Circuit?.Location?.lat) || 0,
+    lon: Number(race.Circuit?.Location?.long) || 0,
+    timezone: 'auto'
+  };
+}
+// Csak ellenőrzött forrásból származó pályajellemző jelenhet meg pontozásként.
 function setTraitRows(profile) {
   const rows = document.querySelectorAll('.bars .bar-row');
   rows.forEach(row => {
@@ -232,6 +240,20 @@ function setTraitRows(profile) {
     const label = row.querySelector('em');
     if (label) label.textContent = 'Nincs ellenőrzött adat';
   });
+  // A panel keskeny nézetben is olvasható maradjon, ha még nincs igazolt érték.
+  if (!document.getElementById('apex-trait-layout-fix')) {
+    const style = document.createElement('style');
+    style.id = 'apex-trait-layout-fix';
+    style.textContent = `
+      .bars .bar-row { grid-template-columns: minmax(88px, 1fr) minmax(0, 1fr); gap: 10px; }
+      .bars .bar-row .bar { display: none; }
+      .bars .bar-row em { white-space: normal; overflow-wrap: anywhere; text-align: left; }
+      @media (max-width: 760px) {
+        .bars .bar-row { grid-template-columns: minmax(78px, 1fr) minmax(0, 1fr); }
+      }
+    `;
+    document.head.appendChild(style);
+  }
 }
 function formatRaceDate(race) { const d = new Date(`${race.date}T${race.time || '12:00:00Z'}`); return d.toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }); }
 async function loadRace() {
