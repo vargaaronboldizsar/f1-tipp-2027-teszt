@@ -44,46 +44,18 @@ const teamColors = {
 };
 
 function applyTeamTheme() {
-  const teamSelect = $('teamSelect');
-  const standardToggle = $('standardTheme');
-  const team = teamSelect?.value || 'ferrari';
-  const standard = !!standardToggle?.checked;
+  const team = $('teamSelect').value;
+  const standard = $('standardTheme').checked;
   const color = standard ? '#f20a24' : (teamColors[team] || '#e10600');
-  const root = document.documentElement;
 
-  // A kiválasztott csapat témája az egész felületre érvényesül.
-  root.dataset.teamTheme = standard ? 'standard' : team;
-  root.style.setProperty('--red', color);
-  root.style.setProperty('--accent', color);
-  root.style.setProperty('--team-color', color);
-  root.style.setProperty('--team-color-soft', `${color}22`);
-  root.style.setProperty('--team-color-border', `${color}88`);
+  document.documentElement.style.setProperty('--red', color);
+  document.documentElement.style.setProperty('--accent', color);
 }
 
-$('teamSelect')?.addEventListener('change', applyTeamTheme);
-$('standardTheme')?.addEventListener('change', applyTeamTheme);
-
-// A régi „Pilóták” menüpontot Hírek néven használjuk.
-function configureNewsNavigation() {
-  document.querySelectorAll('[data-nav="drivers"]').forEach(button => {
-    const spans = [...button.querySelectorAll('span')];
-    const label = spans.length > 1 ? spans[spans.length - 1] : null;
-    if (label) label.textContent = 'Hírek';
-    else {
-      const textNode = [...button.childNodes].find(n => n.nodeType === Node.TEXT_NODE && n.textContent.trim());
-      if (textNode) textNode.textContent = ' Hírek';
-      else button.append(document.createTextNode(' Hírek'));
-    }
-    button.setAttribute('aria-label', 'Hírek');
-    button.title = 'Forma–1 hírek';
-    button.dataset.nav = 'news';
-  });
-  const sidebar = document.querySelector('.sidebar');
-  if (sidebar) sidebar.style.overflowY = 'auto';
-}
+$('teamSelect').addEventListener('change', applyTeamTheme);
+$('standardTheme').addEventListener('change', applyTeamTheme);
 
 applyTeamTheme();
-configureNewsNavigation();
 
 function toast(message) { const t = $('toast'); t.textContent = message; t.classList.remove('hidden'); clearTimeout(window.__toastTimer); window.__toastTimer = setTimeout(() => t.classList.add('hidden'), 4200); }
 // -----------------------------------------------------------------------------
@@ -123,7 +95,6 @@ $('saveProfileButton').addEventListener('click', async () => {
 
     $('headerName').textContent = username;
     $('headerTeam').textContent = data.team.toUpperCase() + ' SZURKOLÓ';
-    applyTeamTheme();
     updateProfileIdentity(data);
     $('settingsOverlay').classList.add('hidden');
 
@@ -250,67 +221,26 @@ const trackProfiles = {
   'losail': { length: 5.419, corners: 16, laps: 57, traits: [3, 4, 2, 3], traitText: ['Magas', 'Magas', 'Közepes', 'Közepes'], lat: 25.49, lon: 51.4542, timezone: 'Asia/Qatar', fact: 'Losail gyors kanyarjai nagy terhelést adnak a gumiknak.' },
   'yas_marina': { length: 5.281, corners: 16, laps: 58, traits: [3, 2, 3, 3], traitText: ['Magas', 'Közepes', 'Magas', 'Közepes'], lat: 24.4672, lon: 54.6031, timezone: 'Asia/Dubai', fact: 'A Yas Marina-i futam naplementében indul, ezért a pályahőmérséklet a verseny alatt is változik.' }
 };
-function profileFor(race) { const id = (race.Circuit?.circuitId || '').toLowerCase(); return trackProfiles[id] || { length: null, corners: null, laps: null, traits: null, traitText: null, lat: Number(race.Circuit?.Location?.lat) || 0, lon: Number(race.Circuit?.Location?.long) || 0, timezone: 'auto', fact: 'Ehhez a pályához még nincs ellenőrzött profiladat.' }; }
-
-// Pályarajzok: Firestore circuits/{circuitId} dokumentumból töltjük.
-// Támogatott mezők: trackSvg (inline SVG szöveg) vagy trackMapUrl (engedélyezett kép URL).
-async function getCircuitMap(circuitId) {
-  if (!circuitId) return null;
-  try {
-    const snap = await getDoc(doc(db, 'circuits', String(circuitId).toLowerCase()));
-    if (!snap.exists()) return null;
-    const data = snap.data() || {};
-    if (typeof data.trackSvg === 'string' && data.trackSvg.includes('<svg')) return { type: 'svg', value: data.trackSvg, name: data.name || circuitId };
-    if (typeof data.trackMapUrl === 'string' && /^https:\/\//i.test(data.trackMapUrl)) return { type: 'url', value: data.trackMapUrl, name: data.name || circuitId };
-  } catch (error) {
-    console.info('Firestore pályarajz nem érhető el:', circuitId, error);
-  }
-  return null;
-}
-function safeTrackSvg(svg) {
-  // SVG-t csak szűkített, script nélküli formában jelenítünk meg.
-  if (typeof svg !== 'string' || !svg.includes('<svg') || /<script|on\w+\s*=|javascript:|<foreignObject/i.test(svg)) return '';
-  return svg;
-}
-async function renderHomeTrackMap(circuitId, circuitName) {
-  const container = $('trackMapContainer');
-  if (!container) return;
-  container.innerHTML = '<span class="track-map-empty">Pályarajz betöltése…</span>';
-  const map = await getCircuitMap(circuitId);
-  if (!container.isConnected) return;
-  if (map?.type === 'svg') {
-    const svg = safeTrackSvg(map.value);
-    if (svg) { container.innerHTML = svg; const el = container.querySelector('svg'); if (el) { el.classList.add('track-svg'); el.setAttribute('role','img'); el.setAttribute('aria-label', `${circuitName || map.name} pályarajza`); } return; }
-  }
-  if (map?.type === 'url') {
-    container.innerHTML = `<img class="track-svg track-map-image" loading="lazy" alt="${String(circuitName || map.name).replace(/[&<>"']/g, '')} pályarajza" src="${map.value}">`;
-    return;
-  }
-  container.innerHTML = '<span class="track-map-empty">Ehhez a pályához még nincs feltöltött pályarajz.</span>';
-}
-
+function profileFor(race) { const id = (race.Circuit?.circuitId || '').toLowerCase(); return trackProfiles[id] || { length: null, corners: null, laps: null, traits: [2, 2, 2, 2], traitText: ['Közepes', 'Közepes', 'Közepes', 'Közepes'], lat: Number(race.Circuit?.Location?.lat) || 0, lon: Number(race.Circuit?.Location?.long) || 0, timezone: 'auto', fact: 'A pályaprofil részletes adatait a Firestore races gyűjteményében lehet megadni.' }; }
 function setTraitRows(profile) {
   const rows = document.querySelectorAll('.bars .bar-row'); rows.forEach((row, i) => {
-    const n = Array.isArray(profile.traits) ? profile.traits[i] : null;
-    row.querySelectorAll('.bar i').forEach((el, j) => el.classList.toggle('on', Number.isFinite(n) && j < n));
-    const label = row.querySelector('em');
-    if (label) label.textContent = profile.traitText?.[i] || 'Nincs adat';
-    row.classList.toggle('data-unavailable', !Number.isFinite(n));
+    const n = profile.traits?.[i] ?? 2; row.querySelectorAll('.bar i').forEach((el, j) => el.classList.toggle('on', j < n)); const label = row.querySelector('em'); if (label)
+      label.textContent = profile.traitText?.[i] || 'Közepes';
   });
 }
 function formatRaceDate(race) { const d = new Date(`${race.date}T${race.time || '12:00:00Z'}`); return d.toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }); }
 async function loadRace() {
   let races = [];
   try {
-    const res = await fetch(`${API_BASE}/2026/races/?limit=100`);
-    if (!res.ok)
-      throw Error('Jolpica API HTTP ' + res.status);
-    const json = await res.json();
-    races = json.MRData?.RaceTable?.Races || [];
+    const scheduleSnap = await getDoc(doc(db, 'raceCalendars', '2026'));
+    if (!scheduleSnap.exists()) throw Error('A 2026-os versenynaptár nincs a Firestore-ban. Futtasd az importálót.');
+    const scheduleData = scheduleSnap.data() || {};
+    races = Array.isArray(scheduleData.events) ? scheduleData.events : [];
+    if (!races.length) throw Error('A Firestore versenynaptára üres.');
   }
   catch (e) {
-    console.warn('2026 race schedule unavailable', e);
-    $('heroStatus').textContent = 'A versenynaptár API most nem érhető el. Próbáld újra később.';
+    console.error('Firestore race calendar unavailable', e);
+    $('heroStatus').textContent = 'A Firestore versenynaptára nem érhető el. Ellenőrizd a raceCalendars/2026 dokumentumot.';
     return;
   }
   const now = Date.now();
@@ -333,20 +263,18 @@ async function loadRace() {
   $('heroTitle').textContent = (race.heroTitle || race.name).toUpperCase();
   $('heroCircuit').textContent = race.circuit;
   $('heroDate').textContent = race.dateLabel || formatRaceDate(next);
-  $('heroStatus').textContent = '';
-  $('heroStatus').setAttribute('aria-hidden', 'true');
+  $('heroStatus').textContent = `2026-os szezon · ${next.round ? 'Forduló ' + next.round : 'Következő futam'} · Firestore`;
   $('trackLength').textContent = race.length ? Number(race.length).toLocaleString('hu-HU', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' km' : '—';
-  const trackCaption = $('trackCaption');
-  if (trackCaption) trackCaption.textContent = race.circuit || race.Circuit?.circuitName || race.name || 'Pályarajz';
   $('trackCorners').textContent = race.corners ?? '—';
-  const lapsEl = $('trackLaps'); if (lapsEl) lapsEl.textContent = race.laps ?? '—';
   $('raceDistance').textContent = (race.length && race.laps) ? (race.length * race.laps).toLocaleString('hu-HU', { maximumFractionDigits: 3 }) + ' km' : '—';
   if (race.heroImageUrl) {
     document.querySelector('.hero').style.backgroundImage = `linear-gradient(90deg,#020609 0%,#03090def 27%,#07101870 62%,#050a0e30),linear-gradient(0deg,#050a0e 0%,transparent 35%),url("${race.heroImageUrl}")`;
   }
-  // A rajz a Firestore circuits/{circuitId} rekordból érkezik, nem beégetett SVG-ből.
-  renderHomeTrackMap(circuitId, race.circuit || race.name).catch(error => console.warn('Pályarajz betöltése sikertelen', error));
-  if (trackCaption) trackCaption.textContent = race.circuit || race.name || 'Pályarajz';
+  if (race.trackSvgPath) {
+    const path = document.querySelector('.track-svg path');
+    if (path)
+      path.setAttribute('d', race.trackSvgPath);
+  }
   setTraitRows(race);
   $('interestingFact').textContent = 'ⓘ ' + (race.fact || 'A pálya jellemzői a verseny helyszíne alapján frissülnek.');
   if (race.tyres) {
@@ -1053,13 +981,13 @@ function showOnlyPage(pageId) {
   if (!content) return;
   [...content.children].forEach(el => {
     const isFooter = el.classList.contains('footer');
-    const isPage = ['tipsPage', 'groupsPage', 'rankingPage', 'statsPage', 'calendarPage', 'profilePage', 'newsPage'].includes(el.id);
+    const isPage = ['tipsPage', 'groupsPage', 'rankingPage', 'statsPage', 'calendarPage', 'profilePage'].includes(el.id);
     if (isPage) el.classList.toggle('hidden', el.id !== pageId);
     else el.classList.toggle('hidden', pageId !== 'home' && !isFooter);
   });
   if (pageId === 'home') {
     [...content.children].forEach(el => {
-      if (!['tipsPage', 'groupsPage', 'rankingPage', 'statsPage', 'calendarPage', 'profilePage', 'newsPage'].includes(el.id)) el.classList.remove('hidden');
+      if (!['tipsPage', 'groupsPage', 'rankingPage', 'statsPage', 'calendarPage', 'profilePage'].includes(el.id)) el.classList.remove('hidden');
     });
   }
 }
@@ -1070,53 +998,6 @@ function showTipsPage() {
 function showHomePage() {
   showOnlyPage('home');
 }
-function showNewsPage() {
-  const content = document.querySelector('.content');
-  if (!content) return;
-  let page = $('newsPage');
-  if (!page) {
-    page = document.createElement('section');
-    page.id = 'newsPage';
-    page.className = 'news-page';
-    content.appendChild(page);
-  }
-
-  const teamKey = $('teamSelect')?.value || 'ferrari';
-  const driverKey = $('driverSelect')?.value || 'leclerc';
-  const teamLabel = ({ferrari:'Ferrari',mclaren:'McLaren',mercedes:'Mercedes',redbull:'Red Bull',williams:'Williams',astonmartin:'Aston Martin',alpine:'Alpine',racingbulls:'Racing Bulls',audi:'Audi',haas:'Haas'})[teamKey] || teamKey;
-  const driverLabel = ({leclerc:'Charles Leclerc',hamilton:'Lewis Hamilton',norris:'Lando Norris',piastri:'Oscar Piastri',verstappen:'Max Verstappen',russell:'George Russell',antonelli:'Kimi Antonelli',alonso:'Fernando Alonso',stroll:'Lance Stroll',sainz:'Carlos Sainz',albon:'Alex Albon',gasly:'Pierre Gasly',ocon:'Esteban Ocon',bearman:'Oliver Bearman',lawson:'Liam Lawson',hadjar:'Isack Hadjar',hulkenberg:'Nico Hülkenberg',bortoleto:'Gabriel Bortoleto'})[driverKey] || driverKey;
-  const teamColor = teamColors[teamKey] || '#e10600';
-  const escapeHtml = v => String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const cards = (kind, name, color) => {
-    const isTeam = kind === 'team';
-    const examples = isTeam ? [
-      ['Fejlesztés','Mérnöki munka','A következő versenyre fókuszál a csapat','A hírfolyam itt a kiválasztott csapatról szóló friss híreket és technikai elemzéseket gyűjti majd össze.'],
-      ['Interjú','Nyilatkozat','A csapat pilótái a hétvége legfontosabb kérdéseiről','Rövid magyar összefoglaló az eredeti cikkből, a forrás megjelölésével.'],
-      ['Háttér','Elemzés','Mit jelenthet a fejlesztési irány a szezon hátralévő részére?','A feldolgozott cikkből készülő magyar nyelvű összefoglaló helye.']
-    ] : [
-      ['Interjú','Pilótanyilatkozat','A pilóta a következő futam kihívásairól beszélt','A kedvenc pilótádhoz kapcsolódó interjúk, nyilatkozatok és versenyhírek jelennek majd meg.'],
-      ['Elemzés','Versenyzés','A hétvége kulcskérdései a pilóta szemszögéből','Rövid, magyar nyelvű összefoglaló, kattintással az eredeti cikkre.'],
-      ['Paddock','Háttér','A legfontosabb fejlemények a pilóta körül','A rendszer a több hírforrásból származó ismétlődő cikkeket összevonja.']
-    ];
-    return `<section class="feed-column" style="--feed-color:${color}">
-      <header class="feed-column-head"><div class="feed-avatar">${isTeam?'🏁':'🏎'}</div><div class="feed-heading"><h2>${escapeHtml(name)} hírei</h2><p>${isTeam?'A kedvenc csapatodról':'A kedvenc pilótádról'} · magyar összefoglalók</p></div><span class="feed-follow">${isTeam?'CSAPAT':'PILÓTA'}</span></header>
-      <div class="feed-cards">${examples.map((x,i)=>`<article class="feed-card ${i===0?'feed-card-featured':''}"><div class="feed-card-image feed-image-${isTeam?'team':'driver'}-${i+1}"><span>${escapeHtml(x[0])}</span><small>TERVEZETT HÍRFORMÁTUM</small></div><div class="feed-card-content"><div class="feed-card-meta"><span>${escapeHtml(name)}</span><span>Forrás: példa</span></div><h3>${escapeHtml(x[2])}</h3><p>${escapeHtml(x[3])}</p><div class="feed-card-footer"><span>Magyar összefoglaló</span><span class="feed-status">DEMO</span></div></div></article>`).join('')}</div>
-    </section>`;
-  };
-  page.innerHTML = `
-    <div class="news-hero news-hero-feed" style="--hero-team:${teamColor}"><div class="news-hero-copy"><span class="eyebrow">APEX · SZEMÉLYRE SZABOTT PADDOCK</span><h1>Hírek</h1><p>Az F1 világa, a te csapatodra és pilótádra szűrve — magyarul.</p><div class="news-hero-chips"><span>✦ ${escapeHtml(teamLabel)}</span><span>✦ ${escapeHtml(driverLabel)}</span><span>HU · AI-összefoglalók</span></div></div><div class="news-hero-art" aria-hidden="true">APEX<span>F1</span></div></div>
-    <div class="news-feed-toolbar"><div><strong>Személyes hírfolyam</strong><p>A beállításaidból veszi a kedvenc csapatot és pilótát.</p></div><div class="news-tabs" role="tablist"><button class="active" data-feed-tab="both">Mindkettő</button><button data-feed-tab="team">Csapatom</button><button data-feed-tab="driver">Pilótám</button></div></div>
-    <div class="news-feed-grid" id="newsFeedGrid">${cards('team',teamLabel,teamColor)}${cards('driver',driverLabel,'#3671c6')}</div>
-    <div class="news-backend-note"><strong>Fejlesztési állapot: felület elkészült, élő híradat még nincs bekötve.</strong><p>A kártyák jelenleg minták, nem valódi hírek. A következő integrációs lépés a megbízható RSS/API-források begyűjtése, szerveroldali AI-fordítás és a Firestore-ba mentett hírfolyam. Az AI API-kulcsot szerveroldalon kell tárolni.</p><a href="https://www.formula1.com/en/latest" target="_blank" rel="noopener noreferrer">Formula1.com hivatalos hírek ↗</a></div>`;
-  showOnlyPage('newsPage');
-  page.querySelectorAll('[data-feed-tab]').forEach(btn => btn.addEventListener('click', () => {
-    page.querySelectorAll('[data-feed-tab]').forEach(b => b.classList.toggle('active', b === btn));
-    const grid = $('newsFeedGrid');
-    grid.classList.toggle('feed-only-team', btn.dataset.feedTab === 'team');
-    grid.classList.toggle('feed-only-driver', btn.dataset.feedTab === 'driver');
-  }));
-}
-
 function openSection(key) {
   if (key === 'profile') { if (!currentUser) { $('loginOverlay').classList.remove('hidden'); $('loginStatus').textContent = 'A profilod megtekintéséhez jelentkezz be.'; return; } showOnlyPage('profilePage'); loadProfileStats(); return; }
   if (key === 'settings') {
@@ -1134,9 +1015,9 @@ function openSection(key) {
   if (key === 'ranking') { showOnlyPage('rankingPage'); loadScoreboard(); return; }
   if (key === 'stats') { showOnlyPage('statsPage'); loadScoreboard(); return; }
   if (key === 'calendar') { showOnlyPage('calendarPage'); initCalendar(); return; }
-  if (key === 'news') { showNewsPage(); return; }
   showHomePage();
   const messages = {
+    drivers: 'A pilótalista bekötése következik.',
     rules: 'A játékszabályok bekötése következik.'
   };
   toast(messages[key] || 'Ez a nézet később készül el.');
@@ -1161,14 +1042,14 @@ function clist(){const rs=cv();$('calendarCount').textContent=`${calRaces.length
 function ctoggleInline(round,eventType){const key=`${round}-${eventType||'gp'}`;if(String(calSelected)===key){calSelected=null;clist();return;}calSelected=key;clist();const r=cv().find(x=>`${x.round}-${x._eventType||'gp'}`===key);if(r)renderCircuitDetail(r,`inline-detail-${key}`);}
 
 function cmonth(){let y=calMonth.getUTCFullYear(),m=calMonth.getUTCMonth(),off=(new Date(Date.UTC(y,m,1)).getUTCDay()+6)%7,days=new Date(Date.UTC(y,m+1,0)).getUTCDate(),prev=new Date(Date.UTC(y,m,0)).getUTCDate();$('calendarMonthTitle').textContent=calMonth.toLocaleDateString('hu-HU',{month:'long',year:'numeric',timeZone:'UTC'});let out=['H','K','SZE','CS','P','SZO','V'].map(n=>`<div class="month-day-name">${n}</div>`).join('');for(let i=0;i<42;i++){let d=i-off+1,inside=d>0&&d<=days,num=d<1?prev+d:d>days?d-days:d,key=`${y}-${String(m+1).padStart(2,'0')}-${String(num).padStart(2,'0')}`,ev=inside?cv().filter(r=>r.date===key):[];out+=`<div class="month-cell ${inside?'':'muted'}"><span class="day-num">${num}</span>${ev.map(r=>`<button class="month-event ${cs(r)?'sprint':''}" data-cm="${ce(r.round)}"><span>${cf(r)} ${ce(cn(r))}</span><span>${cs(r)?'Sprint':'Nagydíj'}</span></button>`).join('')}</div>`;}$('calendarMonthGrid').innerHTML=out;$('calendarMonthGrid').querySelectorAll('[data-cm]').forEach(b=>b.onclick=()=>cselect(b.dataset.cm));let ev=cv().filter(r=>{let d=new Date(r.date+'T12:00:00Z');return d.getUTCFullYear()===y&&d.getUTCMonth()===m});$('calendarMonthEvents').innerHTML=ev.map(r=>`<button class="calendar-race ${cs(r)?'sprint':''}" data-cr="${ce(r.round)}"><span class="race-number">${r.round}.</span><span class="race-flag">${cf(r)}</span><span class="race-main"><strong>${ce(cn(r))}${cs(r)?' – Sprint':''}</strong><small>${ce(r.Circuit?.circuitName||'')}</small></span><span class="race-date">${ce(cd(r))}</span><span class="race-type ${cs(r)?'sprint':''}">${cs(r)?'SPRINT':'NAGYDÍJ'}</span></button>`).join('')||'<div class="loading-state">Ebben a hónapban nincs futam.</div>';$('calendarMonthEvents').querySelectorAll('[data-cr]').forEach(b=>b.onclick=()=>cselect(b.dataset.cr));}
-function csvg(){return '<div class="track-map-empty">Ehhez a pályához még nincs feltöltött pályarajz.</div>';}
+function csvg(n){let paths=['M45 110 L58 62 L94 38 L145 46 L177 22 L225 35 L250 68 L236 102 L198 120 L173 145 L121 151 L86 132 Z','M35 105 L58 62 L105 45 L132 70 L175 28 L226 40 L245 80 L220 112 L176 100 L154 139 L101 143 L75 121 Z','M38 83 L68 43 L119 34 L157 57 L195 34 L238 57 L245 101 L206 133 L164 112 L123 145 L75 128 Z'];let d=paths[Math.abs(+n||0)%3];return `<svg class="track-svg" viewBox="0 0 280 180" role="img" aria-label="Sematikus pályarajz"><path d="${d}"/><path class="track-inner" d="${d}"/><circle cx="45" cy="110" r="5" fill="#f20a24"/><text x="58" y="105" fill="#72bfff" font-size="10">START</text></svg>`;}
 function ctrack(){let rs=cv();$('calendarTrackPicker').innerHTML=rs.map(r=>`<button class="track-pick ${String(r.round)===String(calSelected)?'active':''}" data-ct="${ce(r.round)}"><span class="race-flag">${cf(r)}</span><span><strong>${ce(cn(r))}</strong><small>${ce(r.Circuit?.Location?.locality||'')} · ${ce(cd(r,{day:'numeric',month:'short'}))}</small></span></button>`).join('');$('calendarTrackPicker').querySelectorAll('[data-ct]').forEach(b=>b.onclick=()=>{calSelected=b.dataset.ct;ctrack();});let r=rs.find(x=>String(x.round)===String(calSelected))||rs[0];if(!r){$('calendarTrackDetail').innerHTML='<div class="loading-state">Nincs pályaadat.</div>';return;}renderCircuitDetail(r,'calendarTrackDetail');}
-function renderCircuitDetail(r,targetId){const sessionId=`openf1SessionData-${targetId}`;let p=profileFor(r),o=openF1For(r),img='<div class="track-map-empty">Pályarajz betöltése…</div>';$(targetId).innerHTML=`<div class="track-detail-head"><div><h2>${cf(r)} ${ce(cn(r))}</h2><p>${ce(r.Circuit?.circuitName||'')} · ${ce(r.Circuit?.Location?.locality||'')}, ${ce(r.Circuit?.Location?.country||'')}</p></div><span class="track-number">${ce(r.round)}. futam</span></div><div class="track-map-wrap">${img}<div class="track-stats"><div class="track-stat"><small>PÁLYAHOSSZ</small><strong>${p.length?p.length.toFixed(3).replace('.',',')+' km':'–'}</strong></div><div class="track-stat"><small>KÖRÖK</small><strong>${p.laps||'–'}</strong></div><div class="track-stat"><small>KANYAROK</small><strong>${p.corners||'–'}</strong></div><div class="track-stat"><small>VERSENYTÁV</small><strong>${p.length&&p.laps?(p.length*p.laps).toFixed(3).replace('.',',')+' km':'–'}</strong></div></div></div><div class="track-facts"><strong>Helyszín:</strong> ${ce(r.Circuit?.Location?.locality||'–')}, ${ce(r.Circuit?.Location?.country||'–')}<br><strong>Dátum:</strong> ${ce(cd(r))}<br><strong>Pályatípus:</strong> ${ce(o.circuit_type||'–')}<br><strong>Hivatalos eseménynév:</strong> ${ce(o.meeting_official_name||'–')}<br><strong>Pályainformáció:</strong> ${ce(p.fact||'A pályaprofil részletes adatai később bővíthetők.')}<div id="${sessionId}" class="openf1-session-data"><div class="loading-state">OpenF1 történeti időjárás- és gum adatok ellenőrzése…</div></div>${o.circuit_info_url?`<p><a class="openf1-link" href="${ce(o.circuit_info_url)}" target="_blank" rel="noopener">Részletes pályainformáció ↗</a></p>`:''}<small>Forrás: OpenF1 + Jolpica. Az OpenF1 ingyenes hozzáférése történeti adatokat biztosít 2023-tól; élő adatokhoz előfizetés szükséges.</small></div>`;getCircuitMap(r.Circuit?.circuitId).then(map=>{const wrap=$(targetId)?.querySelector('.track-map-wrap');if(!wrap)return;const oldMap=wrap.querySelector('.track-map-empty, .openf1-circuit-image, .track-svg, .track-map-image');if(!oldMap)return;if(map?.type==='svg'){const clean=safeTrackSvg(map.value);if(clean){oldMap.outerHTML=clean;const svg=wrap.querySelector('svg');if(svg){svg.classList.add('track-svg');svg.setAttribute('role','img');svg.setAttribute('aria-label',`${cn(r)} pályarajza`);}return;}}if(map?.type==='url'){oldMap.outerHTML=`<img class="openf1-circuit-image track-map-image" src="${ce(map.value)}" alt="${ce(cn(r))} pályarajza" loading="lazy">`;return;}oldMap.textContent='Ehhez a pályához még nincs feltöltött pályarajz.';}).catch(()=>{});loadOpenF1Session(r,sessionId).catch(e=>{console.info('OpenF1 session data unavailable',e);const el=$(sessionId);if(el)el.innerHTML='<p>Ehhez a hétvégéhez még nincs elérhető történeti időjárás- vagy gumadat.</p>';});}
+function renderCircuitDetail(r,targetId){const sessionId=`openf1SessionData-${targetId}`;let p=profileFor(r),o=openF1For(r),img=o.circuit_image?`<img class="openf1-circuit-image" src="${ce(o.circuit_image)}" alt="${ce(o.circuit_short_name||cn(r))} pályarajza" loading="lazy">`:csvg(r.round);$(targetId).innerHTML=`<div class="track-detail-head"><div><h2>${cf(r)} ${ce(cn(r))}</h2><p>${ce(r.Circuit?.circuitName||'')} · ${ce(r.Circuit?.Location?.locality||'')}, ${ce(r.Circuit?.Location?.country||'')}</p></div><span class="track-number">${ce(r.round)}. futam</span></div><div class="track-map-wrap">${img}<div class="track-stats"><div class="track-stat"><small>PÁLYAHOSSZ</small><strong>${p.length?p.length.toFixed(3).replace('.',',')+' km':'–'}</strong></div><div class="track-stat"><small>KÖRÖK</small><strong>${p.laps||'–'}</strong></div><div class="track-stat"><small>KANYAROK</small><strong>${p.corners||'–'}</strong></div><div class="track-stat"><small>VERSENYTÁV</small><strong>${p.length&&p.laps?(p.length*p.laps).toFixed(3).replace('.',',')+' km':'–'}</strong></div></div></div><div class="track-facts"><strong>Helyszín:</strong> ${ce(r.Circuit?.Location?.locality||'–')}, ${ce(r.Circuit?.Location?.country||'–')}<br><strong>Dátum:</strong> ${ce(cd(r))}<br><strong>Pályatípus:</strong> ${ce(o.circuit_type||'–')}<br><strong>Hivatalos eseménynév:</strong> ${ce(o.meeting_official_name||'–')}<br><strong>Pályainformáció:</strong> ${ce(p.fact||'A pályaprofil részletes adatai később bővíthetők.')}<div id="${sessionId}" class="openf1-session-data"><div class="loading-state">OpenF1 történeti időjárás- és gum adatok ellenőrzése…</div></div>${o.circuit_info_url?`<p><a class="openf1-link" href="${ce(o.circuit_info_url)}" target="_blank" rel="noopener">Részletes pályainformáció ↗</a></p>`:''}<small>Forrás: OpenF1 + Jolpica. Az OpenF1 ingyenes hozzáférése történeti adatokat biztosít 2023-tól; élő adatokhoz előfizetés szükséges.</small></div>`;loadOpenF1Session(r,sessionId).catch(e=>{console.info('OpenF1 session data unavailable',e);const el=$(sessionId);if(el)el.innerHTML='<p>Ehhez a hétvégéhez még nincs elérhető történeti időjárás- vagy gumadat.</p>';});}
 async function loadOpenF1Session(r,sessionId='openf1SessionData'){const el=$(sessionId);if(!el)return;const meeting=openF1For(r);if(!meeting?.meeting_key){el.innerHTML='<p>Ehhez az eseményhez jelenleg nincs OpenF1-adat.</p>';return;}const cacheKey='openf1-'+meeting.meeting_key;if(window.__apexOpenF1Cache?.[cacheKey]){renderOpenF1Session(window.__apexOpenF1Cache[cacheKey],sessionId);return;}const sessionsRes=await fetch(`${OPENF1}/sessions?meeting_key=${meeting.meeting_key}`);if(!sessionsRes.ok)throw Error('sessions HTTP '+sessionsRes.status);const sessions=await sessionsRes.json();const completed=sessions.filter(x=>x.session_key&&new Date(x.date_end||x.date_start).getTime()<Date.now()).sort((a,b)=>new Date(b.date_end||b.date_start)-new Date(a.date_end||a.date_start));const chosen=completed.find(x=>/Race/i.test(x.session_name||''))||completed.find(x=>/Qualifying/i.test(x.session_name||''))||completed[0];let payload={session:chosen||null,weather:null,compounds:[]};if(chosen){const jobs=await Promise.allSettled([fetch(`${OPENF1}/weather?session_key=${chosen.session_key}`).then(x=>x.ok?x.json():[]),fetch(`${OPENF1}/stints?session_key=${chosen.session_key}`).then(x=>x.ok?x.json():[])]);if(jobs[0].status==='fulfilled')payload.weather=jobs[0].value; if(jobs[1].status==='fulfilled')payload.compounds=[...new Set(jobs[1].value.map(x=>x.compound).filter(Boolean))];}window.__apexOpenF1Cache=window.__apexOpenF1Cache||{};window.__apexOpenF1Cache[cacheKey]=payload;renderOpenF1Session(payload,sessionId);}
 function renderOpenF1Session(d,sessionId='openf1SessionData'){const el=$(sessionId);if(!el)return;if(!d.session){el.innerHTML='<h3>OpenF1 hétvége-adatok</h3><p>A hétvége még nem rendelkezik befejezett OpenF1-mérésekkel. A pálya és a zászló adatai ettől még megjelenhetnek.</p>';return;}const w=d.weather?.length?d.weather[d.weather.length-1]:null;el.innerHTML=`<h3>OpenF1 · ${ce(d.session.session_name||'Legutóbbi elérhető szekció')}</h3><div class="openf1-data-grid"><div><small>GUMIKEVERÉKEK (HASZNÁLT)</small><strong>${d.compounds.length?d.compounds.map(ce).join(' · '):'Nincs adat'}</strong></div><div><small>LEVEGŐ / PÁLYA</small><strong>${w?`${w.air_temperature??'–'}°C / ${w.track_temperature??'–'}°C`:'Nincs időjárásadat'}</strong></div><div><small>PÁRATARTALOM</small><strong>${w&&w.humidity!=null?w.humidity+'%':'–'}</strong></div><div><small>ESŐ</small><strong>${w?(w.rainfall?'Igen':'Nem'):'–'}</strong></div></div><p class="openf1-note">A gumikeverékek a kiválasztott korábbi szekcióban ténylegesen használt keverékek, nem a Pirelli előzetes hétvégi kiosztása. Az időjárás az utolsó elérhető mérés.</p>`;}
 function cselect(round){calSelected=String(round);clist();cmonth();ctrack();cset('track');}
 function cset(v){calView=v;document.querySelectorAll('[data-cal-view]').forEach(b=>b.classList.toggle('active',b.dataset.calView===v));$('calendarListView').classList.toggle('hidden',v!=='list');$('calendarMonthView').classList.toggle('hidden',v!=='month');$('calendarTrackView').classList.toggle('hidden',v!=='track');if(v==='list')clist();if(v==='month')cmonth();if(v==='track')ctrack();}
-async function initCalendar(){if(!calLoaded){try{let [res,openRes]=await Promise.all([fetch(`${API_BASE}/2026/races/?limit=100`),fetch(`${OPENF1}/meetings?year=2026`)]);if(!res.ok)throw Error('Jolpica HTTP '+res.status);let data=await res.json();let meetings=[];if(openRes.ok){try{meetings=await openRes.json();}catch(e){console.warn('OpenF1 meetings parse error',e);}}const sourceRaces=data.MRData?.RaceTable?.Races||[];const enrich=r=>{const country=r.Circuit?.Location?.country||'';const raceName=String(r.raceName||'').toLowerCase();const circuit=String(r.Circuit?.circuitName||'').toLowerCase();const norm=v=>String(v||'').toLowerCase().replace(/grand prix|formula 1|airlines|crypto.com|aramco|pirelli|qatar airways|lenovo|aws|heineken|singapore airlines|las vegas strip|round|\s+/g,' ').trim();const rn=norm(raceName),cnm=norm(circuit);const m=meetings.find(x=>{const mn=norm(x.meeting_name),sn=norm(x.circuit_short_name);return mn&&((rn&& (rn.includes(mn)||mn.includes(rn)))||(cnm&&sn&&(cnm.includes(sn)||sn.includes(cnm))));})||meetings.find(x=>String(x.country_name||'').toLowerCase()===country.toLowerCase()&&!['United States'].includes(country));return {...r,_openf1:m||null};};calRaces=sourceRaces.flatMap(raw=>{const r=enrich(raw);const out=[{...r,_eventType:'gp'}];if(r.Sprint?.date)out.push({...r,date:r.Sprint.date,time:r.Sprint.time||'12:00:00Z',_eventType:'sprint'});return out;});if(!calRaces.length)throw Error('Üres versenynaptár');calLoaded=true;calSelected=String(calRaces[0].round);cnext();clist();cmonth();ctrack();}catch(e){console.error(e);$('calendarRaceList').innerHTML='<div class="loading-state">A versenynaptár most nem tölthető be. Próbáld újra a menüpont megnyitásával.</div>';return;}}cset(calView);}
+async function initCalendar(){if(!calLoaded){try{const scheduleSnap=await getDoc(doc(db,'raceCalendars','2026'));if(!scheduleSnap.exists())throw Error('A Firestore raceCalendars/2026 dokumentum nem található.');const scheduleData=scheduleSnap.data()||{};const sourceRaces=Array.isArray(scheduleData.events)?scheduleData.events:[];if(!sourceRaces.length)throw Error('Üres Firestore versenynaptár');let meetings=[];try{const openRes=await fetch(`${OPENF1}/meetings?year=2026`);if(openRes.ok)meetings=await openRes.json();}catch(e){console.info('OpenF1 meeting adatok most nem érhetők el',e);}const enrich=r=>{const country=r.Circuit?.Location?.country||'';const raceName=String(r.raceName||'').toLowerCase();const circuit=String(r.Circuit?.circuitName||'').toLowerCase();const norm=v=>String(v||'').toLowerCase().replace(/grand prix|formula 1|airlines|crypto.com|aramco|pirelli|qatar airways|lenovo|aws|heineken|singapore airlines|las vegas strip|round|\s+/g,' ').trim();const rn=norm(raceName),cnm=norm(circuit);const m=meetings.find(x=>{const mn=norm(x.meeting_name),sn=norm(x.circuit_short_name);return mn&&((rn&&(rn.includes(mn)||mn.includes(rn)))||(cnm&&sn&&(cnm.includes(sn)||sn.includes(cnm))));})||meetings.find(x=>String(x.country_name||'').toLowerCase()===country.toLowerCase()&&!['United States'].includes(country));return {...r,_openf1:m||null};};calRaces=sourceRaces.flatMap(raw=>{const r=enrich(raw);const out=[{...r,_eventType:'gp'}];if(r.Sprint?.date)out.push({...r,date:r.Sprint.date,time:r.Sprint.time||'12:00:00Z',_eventType:'sprint'});return out;});calLoaded=true;calSelected=String(calRaces[0].round);cnext();clist();cmonth();ctrack();}catch(e){console.error(e);$('calendarRaceList').innerHTML='<div class="loading-state">A Firestore versenynaptár most nem tölthető be. Ellenőrizd a raceCalendars/2026 dokumentumot.</div>';return;}}cset(calView);}
 document.querySelectorAll('[data-cal-view]').forEach(b=>b.addEventListener('click',()=>cset(b.dataset.calView)));
 document.querySelectorAll('[data-cal-filter]').forEach(b=>b.addEventListener('click',()=>{calFilter=b.dataset.calFilter;document.querySelectorAll('[data-cal-filter]').forEach(x=>x.classList.toggle('active',x===b));clist();cmonth();ctrack();}));
 $('calendarPrevMonth')?.addEventListener('click',()=>{calMonth=new Date(Date.UTC(calMonth.getUTCFullYear(),calMonth.getUTCMonth()-1,1));cmonth();});
@@ -1371,20 +1252,20 @@ async function loadTipData() {
   $('tipRaceInfo').textContent = 'Futamok és pilóták betöltése…';
 
   try {
-    const [racesResponse, driversResponse] = await Promise.all([
-      fetch(`${API_BASE}/2026/races/?limit=100`),
+    const [scheduleSnap, driversResponse] = await Promise.all([
+      getDoc(doc(db, 'raceCalendars', '2026')),
       fetch(`${API_BASE}/2026/drivers/?limit=100`)
     ]);
 
-    if (!racesResponse.ok || !driversResponse.ok) {
-      throw new Error('Az F1 API nem adott vissza sikeres választ.');
-    }
+    if (!scheduleSnap.exists()) throw new Error('A Firestore versenynaptár nem található: raceCalendars/2026.');
+    if (!driversResponse.ok) throw new Error('A pilóták API-ja nem adott vissza sikeres választ.');
 
-    const racesData = await racesResponse.json();
+    const scheduleData = scheduleSnap.data() || {};
     const driversData = await driversResponse.json();
 
-    const races = racesData.MRData?.RaceTable?.Races || [];
+    const races = Array.isArray(scheduleData.events) ? scheduleData.events : [];
     const drivers = driversData.MRData?.DriverTable?.Drivers || [];
+    if (!races.length) throw new Error('A Firestore versenynaptára üres.');
 
     
 
@@ -1496,6 +1377,9 @@ function goTips() {
   $(id).addEventListener('click', goTips);
 });
 
+$('raceDetailsButton').addEventListener('click', () => {
+  toast('A versenyhétvége részleteinek bekötése később következik.');
+});
 
 
 
