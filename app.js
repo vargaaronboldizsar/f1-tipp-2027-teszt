@@ -253,20 +253,50 @@ async function setTraitRows(profile) {
     `;
     document.head.appendChild(style);
   }
-  const circuitId = String(profile.circuitId || profile.Circuit?.circuitId || '').toLowerCase();
-  const profileDocIds = {
-    albert_park: 'albert_park', shanghai: 'shanghai', suzuka: 'suzuka', miami: 'miami',
-    villeneuve: 'villeneuve', monaco: 'monaco', catalunya: 'catalunya', red_bull_ring: 'red_bull_ring',
-    silverstone: 'silverstone', spa: 'spa', hungaroring: 'hungaroring', zandvoort: 'zandvoort',
-    monza: 'monza', madring: 'madring', baku: 'baku', marina_bay: 'marina_bay',
-    americas: 'americas', rodriguez: 'rodriguez', interlagos: 'interlagos', vegas: 'vegas',
-    losail: 'losail', yas_marina: 'yas_marina'
+  const rawCircuitId = String(profile.circuitId || profile.Circuit?.circuitId || '').trim().toLowerCase();
+  const normalizeCircuitId = value => String(value || '').trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+  const aliases = {
+    melbourne: 'albert_park', australian: 'albert_park', australia: 'albert_park',
+    china: 'shanghai', chinese: 'shanghai', japan: 'suzuka', japanese: 'suzuka',
+    canada: 'villeneuve', canadian: 'villeneuve', montreal: 'villeneuve',
+    spain: 'catalunya', spanish: 'catalunya', barcelona: 'catalunya',
+    austria: 'red_bull_ring', austrian: 'red_bull_ring', spielberg: 'red_bull_ring',
+    belgium: 'spa', belgian: 'spa', spa_francorchamps: 'spa',
+    italy: 'monza', italian: 'monza', netherlands: 'zandvoort', dutch: 'zandvoort',
+    madrid: 'madring', united_states: 'americas', us: 'americas', usa: 'americas', austin: 'americas', cota: 'americas',
+    mexico: 'rodriguez', mexico_city: 'rodriguez', mexican: 'rodriguez',
+    singapore: 'marina_bay', singaporean: 'marina_bay',
+    las_vegas: 'vegas', vegas_strip: 'vegas', qatar: 'losail', lusail: 'losail',
+    abu_dhabi: 'yas_marina', yas_island: 'yas_marina', brazil: 'interlagos', sao_paulo: 'interlagos',
+    azerbaijan: 'baku', baku_city: 'baku', hungary: 'hungaroring', hungarian: 'hungaroring',
+    miami_gardens: 'miami'
   };
-  const id = profileDocIds[circuitId] || circuitId;
+  const nameCandidates = [profile.circuit, profile.Circuit?.circuitName, profile.name, profile.raceName, profile.grandPrixNameHu];
+  const candidateIds = [...new Set([
+    rawCircuitId,
+    aliases[normalizeCircuitId(rawCircuitId)],
+    ...nameCandidates.map(normalizeCircuitId),
+    ...nameCandidates.map(value => aliases[normalizeCircuitId(value)])
+  ].filter(Boolean))];
   let data = null;
   try {
-    const snap = await getDoc(doc(db, 'circuitProfiles', id));
-    if (snap.exists()) data = snap.data();
+    for (const id of candidateIds) {
+      const snap = await getDoc(doc(db, 'circuitProfiles', id));
+      if (snap.exists()) { data = snap.data(); break; }
+    }
+    // Fallback: a naptár pályaazonosítója eltérhet a profil dokumentumazonosítójától.
+    if (!data) {
+      const allProfiles = await getDocs(collection(db, 'circuitProfiles'));
+      const wantedNames = nameCandidates.map(normalizeCircuitId).filter(name => name.length >= 5);
+      allProfiles.forEach(item => {
+        if (data) return;
+        const candidate = item.data() || {};
+        const storedNames = [candidate.trackName, candidate.grandPrixNameHu, candidate.circuitName, candidate.raceName]
+          .map(normalizeCircuitId).filter(name => name.length >= 5);
+        if (storedNames.some(stored => wantedNames.some(wanted => stored === wanted || stored.includes(wanted) || wanted.includes(stored)))) data = candidate;
+      });
+    }
   } catch (e) { console.info('Firestore circuit profile unavailable', e); }
   const highlights = Array.isArray(data?.highlights) ? data.highlights.slice(0, 4) : [];
   rows.forEach((row, i) => {
@@ -303,11 +333,10 @@ async function setTraitRows(profile) {
       const link = document.createElement('a'); link.href = data.source?.url || data.sourceUrl; link.target = '_blank'; link.rel = 'noopener noreferrer';
       link.textContent = 'Pirelli – 2026-os pályaleírás'; source.append(link);
     } else {
-      source.textContent = 'Ehhez a pályához még nincs betöltött, forrásolt profil.';
+      source.remove();
     }
-    let method = panelBody.querySelector('.apex-profile-method-note');
-    if (!method) { method = document.createElement('p'); method.className = 'apex-profile-method-note'; panelBody.appendChild(method); }
-    method.textContent = '1–5-ös kvalitatív becslés a forrásszöveg alapján, nem hivatalos Pirelli-pontszám. Sorra mutatva látható az indoklás.';
+    const method = panelBody.querySelector('.apex-profile-method-note');
+    if (method) method.remove();
   }
 }
 function formatRaceDate(race) { const d = new Date(`${race.date}T${race.time || '12:00:00Z'}`); return d.toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }); }
