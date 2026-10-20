@@ -270,11 +270,13 @@ async function loadRace() {
   if (race.heroImageUrl) {
     document.querySelector('.hero').style.backgroundImage = `linear-gradient(90deg,#020609 0%,#03090def 27%,#07101870 62%,#050a0e30),linear-gradient(0deg,#050a0e 0%,transparent 35%),url("${race.heroImageUrl}")`;
   }
-  if (race.trackSvgPath) {
-    const path = document.querySelector('.track-svg path');
-    if (path)
-      path.setAttribute('d', race.trackSvgPath);
-  }
+  // A pályarajzok a Firestore circuits kollekcióban teljes SVG-ként vannak tárolva.
+  // A korábbi kód csak egy trackSvgPath mezőt keresett, ezért az importált SVG nem jelent meg.
+  loadCircuitSvg(circuitId, race.circuit).catch(error => {
+    console.warn('Firestore pályarajz nem tölthető be:', error);
+    const caption = document.querySelector('.track-panel .track-caption');
+    if (caption) caption.textContent = race.circuit || 'Pályarajz nem érhető el';
+  });
   setTraitRows(race);
   $('interestingFact').textContent = 'ⓘ ' + (race.fact || 'A pálya jellemzői a verseny helyszíne alapján frissülnek.');
   if (race.tyres) {
@@ -296,6 +298,45 @@ async function loadRace() {
       small.textContent = 'Ki nyeri a ' + race.name + '-t?';
   });
 }
+async function loadCircuitSvg(circuitId, circuitName) {
+  const host = document.querySelector('.track-panel .track-layout > div:first-child');
+  if (!host) return;
+  const snapshot = await getDocs(collection(db, 'circuits'));
+  const norm = value => String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+  const wantedId = norm(circuitId);
+  const wantedName = norm(circuitName);
+  let match = null;
+  snapshot.forEach(item => {
+    if (match) return;
+    const d = item.data() || {};
+    const ids = [item.id, d.circuitId, d.slug, d.id, d.circuit_id].map(norm);
+    const names = [d.name, d.circuitName, d.trackName, d.title, d.locality].map(norm);
+    if ((wantedId && ids.includes(wantedId)) || (wantedName && names.some(n => n && (n === wantedName || n.includes(wantedName) || wantedName.includes(n))))) match = d;
+  });
+  if (!match) throw new Error(`Nem található pályarajz: ${circuitId} / ${circuitName}`);
+  const svgText = match.trackSvg || match.svg || match.svgContent;
+  if (!svgText || typeof svgText !== 'string') throw new Error('A circuits dokumentumban nincs trackSvg mező.');
+  const parsed = new DOMParser().parseFromString(svgText, 'image/svg+xml');
+  const svg = parsed.documentElement;
+  if (svg.localName !== 'svg' || parsed.querySelector('parsererror')) throw new Error('A Firestore trackSvg mező nem érvényes SVG.');
+  svg.querySelectorAll('script,foreignObject,iframe,object,embed').forEach(el => el.remove());
+  svg.querySelectorAll('*').forEach(el => [...el.attributes].forEach(attr => {
+    if (/^on/i.test(attr.name) || ((attr.name === 'href' || attr.name.endsWith(':href')) && !attr.value.startsWith('#'))) el.removeAttribute(attr.name);
+  }));
+  svg.setAttribute('class', 'track-svg');
+  if (!svg.getAttribute('viewBox')) svg.setAttribute('viewBox', '0 0 260 140');
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', `${circuitName || circuitId} pályarajza`);
+  svg.style.width = '100%';
+  svg.style.height = 'auto';
+  svg.style.display = 'block';
+  const current = host.querySelector('.track-svg');
+  if (current) current.replaceWith(document.importNode(svg, true));
+  else host.prepend(document.importNode(svg, true));
+  const caption = host.querySelector('.track-caption');
+  if (caption) caption.textContent = String(match.name || match.circuitName || match.trackName || circuitName || circuitId);
+}
+
 async function loadWeather(race, apiRace) {
   const start = new Date(race.date), daysAway = (start - Date.now()) / 86400000; if (daysAway < 0) {
     $('weatherTemp').textContent = '—°C';
@@ -403,7 +444,7 @@ async function loadTipReferenceData() {
   const requestId = ++tipReferenceRequest;
   status.textContent = 'Tavalyi időmérő- és szabadedzésadatok betöltése…'; data.innerHTML = '';
   if (warning) { warning.textContent = ''; delete warning.dataset.referenceMs; }
-  loadTipWeekendWeather(option, requestId).catch(err => console.warn('Hétvégi időjárás betöltése sikertelen:', err));
+  loadTipWeekendWeather(option, requestId).catch(err => { console.warn('Hétvégi időjárás betöltése sikertelen:', err); const status = $('tipWeekendWeatherStatus'); if (status) status.textContent = 'Az előrejelzés most nem tölthető be. Próbáld újra később.'; });
   const circuitId = option.dataset.circuitId || '';
   // A 2025-ös történeti eredmények lezártak: böngészőben tartósan cache-eljük őket,
   // így ugyanazt a versenyt nem kérjük le újra minden oldalnyitáskor.
@@ -609,7 +650,24 @@ function weatherIcon(code) {
   if ([95,96,99].includes(code)) return '⛈️';
   return '⛅';
 }
+function ensureTipWeekendWeatherPanel() {
+  let panel = $('tipWeekendWeatherPanel');
+  if (panel) return panel;
+  const page = $('tipsPage');
+  if (!page) return null;
+  panel = document.createElement('section');
+  panel.id = 'tipWeekendWeatherPanel';
+  panel.className = 'panel';
+  panel.style.cssText = 'padding:18px;margin:0 0 18px';
+  panel.innerHTML = '<h3 style="margin-top:0">Várható időjárás · péntek–szombat–vasárnap</h3><p id="tipWeekendWeatherStatus" role="status" style="color:var(--muted)">Válassz futamot az előrejelzéshez.</p><div id="tipWeekendWeatherData" class="cards" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px"></div><p id="tipWeekendWeatherSource" style="color:var(--muted);font-size:12px;margin-bottom:0">Forrás: Open-Meteo</p>';
+  const racePanel = $('tipRaceInfo')?.closest('.panel');
+  if (racePanel?.parentNode) racePanel.insertAdjacentElement('afterend', panel);
+  else page.prepend(panel);
+  return panel;
+}
+
 async function loadTipWeekendWeather(option, requestId) {
+  ensureTipWeekendWeatherPanel();
   const status = $('tipWeekendWeatherStatus'), dataEl = $('tipWeekendWeatherData'), source = $('tipWeekendWeatherSource');
   if (!status || !dataEl || !source) return;
   status.textContent = 'Péntek–vasárnapi előrejelzés betöltése…'; dataEl.innerHTML = '';
