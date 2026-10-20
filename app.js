@@ -232,25 +232,69 @@ function profileFor(race) {
     timezone: 'auto'
   };
 }
-// Csak ellenőrzött forrásból származó pályajellemző jelenhet meg pontozásként.
+// Forrásolt, szöveges pályajellemzők. Nincs becsült 1–4-es skála.
+// Elsődleges forrás: Pirelli F1 2026-os pályakalauza és az adott pályáról szóló leírásai.
+// Csak ott jelenítünk meg jellemzőt, ahol a forrás kifejezetten alátámasztja.
+const TRACK_PROFILE_SOURCE = 'https://www.pirelli.com/tyres/en-gb/motorsport/car/formula-1/calendar';
+const trackEvidence = {
+  hungaroring: { wear: 'A sok egymást követő kanyar miatt a gumik folyamatosan dolgoznak és melegszenek.', source: TRACK_PROFILE_SOURCE },
+  silverstone: { downforce: 'A nagy átlagsebesség miatt az aerodinamikai teljesítmény fontosabb a mechanikai tapadásnál.', wear: 'A gyors kanyarok jelentős gumiterhelést jelentenek.', source: TRACK_PROFILE_SOURCE },
+  spa: { wear: 'Az Eau Rouge–Raidillon szakaszon a szezon egyik legnagyobb csúcsterhelése éri a gumikat; a hullámos pálya a karkaszt is terheli.', source: TRACK_PROFILE_SOURCE },
+  monza: { braking: 'A nagy sebesség és az erős fékezések kiemelkedő energiaterhelést adnak a gumiknak.', source: TRACK_PROFILE_SOURCE },
+  red_bull_ring: { downforce: 'A viszonylag alacsony átlagsebesség miatt a mechanikai tapadás fontosabb az aerodinamikai leszorítóerőnél.', wear: 'A bal oldali gumik kapják a nagyobb terhelést; a belső szakasz terheli leginkább a gumikat.', straights: 'Két fő egyenes és több éles kanyar jellemzi.', source: TRACK_PROFILE_SOURCE },
+  zandvoort: { wear: 'A hosszú, gyors jobbkanyarok nagy terhelést adnak a gumiknak.', source: TRACK_PROFILE_SOURCE },
+  villeneuve: { wear: 'A pálya nagy hosszirányú terhelést ad a gumiknak; a lassú és közepes kanyarok kigyorsításain a hátsó gumik különösen dolgoznak.', braking: 'A fékezés és a kigyorsítás a pálya meghatározó terhelési elemei.', source: TRACK_PROFILE_SOURCE },
+  catalunya: { wear: 'A közepes és gyors kanyarok a gumik többféle teljesítményét teszik próbára; különösen a bal oldali gumik terheltek a 3-as kanyarban.', source: TRACK_PROFILE_SOURCE },
+  monaco: { downforce: 'A lassú kanyarokban fontos a nagy mechanikai tapadás és az alacsony sebességre optimalizált leszorítóerő.', wear: 'A gum kopása alacsony.', source: TRACK_PROFILE_SOURCE },
+  shanghai: { wear: 'A kanyarok a köridő jelentős részét adják, ezért nagy oldalirányú gyorsulást és gumiterhelést jelentenek.', straights: 'Hosszú hátsó egyenes vezet egy szűkülő jobbkanyarhoz.', source: TRACK_PROFILE_SOURCE },
+  albert_park: { wear: 'Félállandó pálya: a tapadás a hétvége során változik, ahogy a gumiréteg felépül.', source: TRACK_PROFILE_SOURCE },
+  marina_bay: { wear: 'A kopás önmagában általában nem meghatározó, ha a lassú kanyarokból kijövet kontrollálják a kipörgést és a túlmelegedést.', source: TRACK_PROFILE_SOURCE },
+  vegas: { wear: 'A késő esti, nagyon hűvös körülmények megnehezítik a gumik üzemi hőmérsékletre hozását.', straights: 'A hosszú egyenesek és a gyors, többnyire folyékony kanyarok miatt nagy a tempó és több előzési lehetőség adódik.', source: TRACK_PROFILE_SOURCE },
+  losail: { wear: 'Nagy sebességű, egymásba folyó kanyarok; a bal első gumi kapja a legnagyobb terhelést.', braking: 'A fékezési pont eltalálása különösen fontos, könnyű hibázni.', source: TRACK_PROFILE_SOURCE },
+  baku: { straights: 'Gyors utcai pálya szűk, 90 fokos kanyarokkal és a tengerpart mentén futó hosszú egyenessel.', braking: 'A szűk, derékszögű kanyarok miatt a fékezési pontosság fontos.', source: TRACK_PROFILE_SOURCE },
+  americas: { source: TRACK_PROFILE_SOURCE },
+  rodriguez: { source: TRACK_PROFILE_SOURCE },
+  interlagos: { source: TRACK_PROFILE_SOURCE },
+  yas_marina: { source: TRACK_PROFILE_SOURCE }
+};
+const traitKeys = ['downforce', 'wear', 'braking', 'straights'];
 function setTraitRows(profile) {
   const rows = document.querySelectorAll('.bars .bar-row');
-  rows.forEach(row => {
+  const circuitId = String(profile.circuitId || profile.Circuit?.circuitId || '').toLowerCase();
+  const evidence = trackEvidence[circuitId] || null;
+  rows.forEach((row, i) => {
     row.querySelectorAll('.bar i').forEach(el => el.classList.remove('on'));
     const label = row.querySelector('em');
-    if (label) label.textContent = 'Nincs ellenőrzött adat';
+    const key = traitKeys[i];
+    const value = evidence?.[key];
+    if (label) label.textContent = value || 'Nincs ellenőrzött adat';
+    row.classList.toggle('has-source-data', Boolean(value));
   });
-  // A panel keskeny nézetben is olvasható maradjon, ha még nincs igazolt érték.
+  // A forrás megjelenik a panelen, a hiányzó jellemzőket nem következtetjük ki.
+  const panel = document.querySelector('.bars')?.parentElement;
+  if (panel) {
+    let note = panel.querySelector('.apex-profile-source-note');
+    if (!note) {
+      note = document.createElement('p');
+      note.className = 'tyre-note apex-profile-source-note';
+      panel.appendChild(note);
+    }
+    if (evidence && Object.keys(evidence).some(k => k !== 'source' && evidence[k])) {
+      note.innerHTML = `A szöveges jellemzők forrása: <a href="${TRACK_PROFILE_SOURCE}" target="_blank" rel="noopener noreferrer">Pirelli – 2026-os F1 pályakalauz ↗</a>. A hiányzó értékekhez nincs itt igazolt adat.`;
+    } else {
+      note.innerHTML = `Ehhez a pályához még nincs ellenőrzött, kategóriánkénti adat. <a href="${TRACK_PROFILE_SOURCE}" target="_blank" rel="noopener noreferrer">Pirelli hivatalos pályakalauza ↗</a>`;
+    }
+  }
   if (!document.getElementById('apex-trait-layout-fix')) {
     const style = document.createElement('style');
     style.id = 'apex-trait-layout-fix';
     style.textContent = `
-      .bars .bar-row { grid-template-columns: minmax(88px, 1fr) minmax(0, 1fr); gap: 10px; }
+      .bars .bar-row { grid-template-columns: minmax(92px, .7fr) minmax(0, 1.3fr); gap: 10px; align-items: start; }
       .bars .bar-row .bar { display: none; }
-      .bars .bar-row em { white-space: normal; overflow-wrap: anywhere; text-align: left; }
-      @media (max-width: 760px) {
-        .bars .bar-row { grid-template-columns: minmax(78px, 1fr) minmax(0, 1fr); }
-      }
+      .bars .bar-row em { white-space: normal; overflow-wrap: anywhere; text-align: left; line-height: 1.45; }
+      .apex-profile-source-note a { color: #9ddcff; text-decoration: underline; }
+      .bars .bar-row { padding: 5px 0; border-bottom: 1px solid #17232d; }
+      @media (max-width: 760px) { .bars .bar-row { grid-template-columns: minmax(78px, .8fr) minmax(0, 1.2fr); } }
     `;
     document.head.appendChild(style);
   }
