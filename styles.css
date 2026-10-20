@@ -383,44 +383,67 @@ button {
 }
 .tyres {
   display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:8px;
-  padding-top:5px;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;
+  padding:8px 0 12px;
 }
 .tyre {
-  border:1px solid #253441;
-  border-radius:8px;
-  padding:12px 8px;
+  min-width:0;
   text-align:center;
-  background:#0b141b;
+  padding:10px 5px 8px;
+  border:1px solid #243440;
+  border-radius:10px;
+  background:linear-gradient(180deg,#0d171f 0%,#070d12 100%);
+  overflow:hidden;
 }
-.tyre-mark {
-  width:48px;
-  height:48px;
-  border:7px solid #e8edf1;
+.tyre strong { display:block; font-size:12px; letter-spacing:.09em; }
+.tyre small { display:block; margin-top:3px; color:#c4d0db; font-size:11px; font-weight:700; }
+.tyre-wheel {
+  width:clamp(64px,7vw,100px);
+  aspect-ratio:1;
+  margin:12px auto 10px;
   border-radius:50%;
-  margin:0 auto 8px;
-  box-shadow:inset 0 0 0 4px #101820;
+  position:relative;
+  background:radial-gradient(circle at 50% 50%,#05080a 0 24%,#202a31 25% 30%,#070b0e 31% 39%,#303a42 40% 43%,#090d10 44% 62%,#202a31 63% 68%,#080c0f 69% 100%);
+  border:5px solid #090d10;
+  box-shadow:inset 0 0 0 2px #3a444c,0 8px 14px #0008;
 }
-.tyre.medium .tyre-mark {
-  border-color:#ffd52a;
+.tyre-wheel::before {
+  content:""; position:absolute; inset:7%; border-radius:50%;
+  border:3px solid var(--tyre-accent,#f0f2f4);
+  box-shadow:inset 0 0 0 2px #080c0f,0 0 7px color-mix(in srgb,var(--tyre-accent,#f0f2f4) 25%,transparent);
 }
-.tyre.soft .tyre-mark {
-  border-color:#fa344a;
+.tyre-wheel::after {
+  content:""; position:absolute; inset:18%; border-radius:50%;
+  background:repeating-conic-gradient(from 8deg,#26313a 0deg 8deg,#080c10 8deg 23deg);
+  border:2px solid #59636b;
+  box-shadow:inset 0 0 0 4px #10171c;
 }
-.tyre strong {
-  display:block;
-  font-size:13px;
-}
-.tyre small {
-  font-size:10px;
-  color:var(--muted);
-}
-.tyre-note {
-  font-size:10px;
-  color:#aab8c6;
-  margin-top:10px;
-}
+.tyre-rim { position:absolute; z-index:2; inset:34%; border-radius:50%; border:3px solid #6c777f; background:radial-gradient(circle,#090d10 0 28%,#69747c 30% 39%,#11171b 42% 100%); }
+.tyre-hub { position:absolute; z-index:3; inset:44%; border-radius:50%; background:#a9b2b8; box-shadow:0 0 0 2px #252d33; }
+.tyre.hard { --tyre-accent:#f1f4f6; }
+.tyre.medium { --tyre-accent:#ffd52a; }
+.tyre.soft { --tyre-accent:#fa344a; }
+.tyre.hard strong { color:#f1f4f6; }
+.tyre.medium strong { color:#ffd52a; }
+.tyre.soft strong { color:#fa344a; }
+.tyre-arrows { display:flex; align-items:center; justify-content:center; gap:8px; min-height:24px; font-size:22px; font-weight:900; }
+.arrow-left { color:#cbd4dc; }
+.arrow-right { color:#fa344a; }
+.arrow-code { color:#f3f6f8; font-size:11px; letter-spacing:.04em; }
+.arrow-code.muted { color:#71808c; }
+.compound-scale { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:7px; padding:10px 0 3px; border-top:1px solid #22313b; }
+.scale-hard-arrows,.scale-soft-arrows { white-space:nowrap; font-size:13px; letter-spacing:-4px; font-weight:900; }
+.scale-hard-arrows { color:#dce4e9; }
+.scale-soft-arrows { color:#fa344a; }
+.compound-codes { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:3px; }
+.compound-codes span { text-align:center; padding:5px 0; border-radius:4px; color:#71808c; background:#111c24; font-size:10px; font-weight:800; border:1px solid transparent; }
+.compound-codes span.is-selected { color:#f4f7fa; background:#24313b; border-color:#4a5965; }
+.compound-codes span.is-hard { box-shadow:inset 0 -2px #f1f4f6; }
+.compound-codes span.is-medium { box-shadow:inset 0 -2px #ffd52a; }
+.compound-codes span.is-soft { box-shadow:inset 0 -2px #fa344a; }
+.tyre-note { font-size:10px; color:#aab8c6; margin-top:9px; line-height:1.4; }
+
 .section-head {
   display:flex;
   justify-content:space-between;
@@ -1171,25 +1194,27 @@ input[type="checkbox"],input[type="radio"] { accent-color:var(--team-color); }
 @media(max-width:1000px){.news-feed-grid{grid-template-columns:1fr}.news-hero-art{right:5%;font-size:52px}}
 @media(max-width:600px){.news-hero-feed{padding:22px 17px}.news-hero-art{opacity:.18;right:3%;top:50px}.news-tabs{width:100%;display:grid;grid-template-columns:repeat(3,1fr)}.news-tabs button{padding:8px 5px;font-size:12px}.feed-cards{grid-template-columns:1fr}.feed-card-featured{grid-column:auto}.feed-card-image,.feed-card-featured .feed-card-image{height:150px}.feed-column-head{padding:12px}.feed-follow{display:none}}
 
-/* Homepage track card: stable 2x2 stats grid; no overlap at narrow widths. */
+/* 2026-10: homepage circuit stats must remain readable at narrow widths */
 .track-panel { min-width: 0; }
-.track-panel .track-layout { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(180px, .95fr); gap: 14px; align-items: start; }
+.track-panel .track-layout { grid-template-columns: minmax(0, 1.15fr) minmax(0, .9fr); gap: 14px; align-items: start; }
 .track-panel .track-layout > div { min-width: 0; }
-.track-panel .track-svg { width: 100%; height: 150px; min-width: 0; }
-.track-panel .track-caption { overflow-wrap: anywhere; line-height: 1.35; margin-top: 7px; font-size: 10px; color: #9eb0bf; }
-.track-panel .track-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; min-width: 0; align-content: start; }
-.track-panel .stat-row { display: flex; flex-direction: column; justify-content: center; gap: 5px; min-width: 0; min-height: 60px; padding: 9px; border: 1px solid #203541; border-radius: 8px; background: #0a1720; }
+.track-panel .track-svg { height: 150px; min-width: 0; }
+.track-panel .track-caption { overflow-wrap: anywhere; line-height: 1.35; margin-top: 7px; }
+.track-panel .track-stats { min-width: 0; }
+.track-panel .stat-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; padding: 8px 0; border-bottom: 1px solid #203541; min-width: 0; }
 .track-panel .stat-row span { color: #93a7b7; font-size: 11px; }
-.track-panel .stat-row strong { display: block; min-width: 0; font-size: clamp(13px, 1.05vw, 17px); line-height: 1.2; white-space: normal; overflow-wrap: anywhere; }
+.track-panel .stat-row strong { display: block; min-width: 0; font-size: clamp(13px, 1.1vw, 17px); overflow-wrap: anywhere; }
 .bar-row.data-unavailable .bar i { opacity: .22; }
 .hero-status:empty { display: none; }
-@media (max-width: 1100px) { .track-panel .track-layout { grid-template-columns: minmax(0, 1fr); } .track-panel .track-svg { height: 130px; } .track-panel .track-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 1100px) { .track-panel .track-layout { grid-template-columns: minmax(0, 1fr); } .track-panel .track-svg { height: 130px; } .track-panel .track-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 12px; } }
 
-/* Firestore-alapú pályarajzok */
-.track-map-placeholder{width:100%;min-height:150px;display:flex;align-items:center;justify-content:center;overflow:hidden;background-image:linear-gradient(#162833 1px,transparent 1px),linear-gradient(90deg,#162833 1px,transparent 1px);background-size:18px 18px;border:1px solid #203541;border-radius:8px;padding:10px;box-sizing:border-box}
-.track-map-placeholder .track-map-empty{max-width:220px;color:#8fa3b4;font-size:12px;line-height:1.45;text-align:center}
-.track-map-placeholder svg.track-svg{height:150px;max-height:100%;border:0;background:none;object-fit:contain}
-.track-map-placeholder img.track-map-image{width:100%;height:150px;object-fit:contain;display:block}
-.track-map-wrap>.track-map-empty{min-height:160px;display:flex;align-items:center;justify-content:center;text-align:center;color:#8fa3b4;border:1px dashed #203541;border-radius:8px;padding:12px}
-.track-map-wrap .track-map-image{width:100%;height:180px;object-fit:contain;background:#071119;border:1px solid #203541;border-radius:8px}
-.track-detail .track-map-wrap svg.track-svg{object-fit:contain}
+@media(max-width:760px){
+ .tyres { gap:5px; }
+ .tyre { padding:8px 3px 6px; }
+ .tyre strong { font-size:10px; }
+ .tyre-wheel { width:58px; margin:9px auto; border-width:4px; }
+ .tyre-arrows { gap:4px; }
+ .compound-scale { gap:4px; }
+ .scale-hard-arrows,.scale-soft-arrows { font-size:10px; letter-spacing:-3px; }
+ .compound-codes span { font-size:9px; padding:4px 0; }
+}
