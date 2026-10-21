@@ -1717,3 +1717,20 @@ input[type="checkbox"],input[type="radio"] { accent-color:var(--team-color); }
 @media (prefers-reduced-motion: reduce) {
   .category, .category .cat-img { transition: none !important; }
 }
+
+
+/* V11: real category artwork assets, instead of gradient-only placeholders */
+.category .cat-img {
+  background-size: cover !important;
+  background-position: center 42% !important;
+  background-repeat: no-repeat !important;
+  opacity: .96;
+}
+.category:nth-child(1) .cat-img { background-image: url("./assets/category-winner.jpg") !important; }
+.category:nth-child(2) .cat-img { background-image: url("./assets/category-pole.jpg") !important; }
+.category:nth-child(3) .cat-img { background-image: url("./assets/category-podium.jpg") !important; }
+.category:nth-child(4) .cat-img { background-image: url("./assets/category-fastest.jpg") !important; }
+.category:nth-child(5) .cat-img { background-image: url("./assets/category-safety.jpg") !important; }
+.category:nth-child(6) .cat-img { background-image: url("./assets/category-special.jpg") !important; }
+/* The artwork already contains a category symbol; avoid doubling it with the emoji overlay. */
+.category .cat-icon { display: none !important; }
