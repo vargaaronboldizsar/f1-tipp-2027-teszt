@@ -36,6 +36,8 @@ let statsSelectedGroupId = '';
 let statsGroups = [];
 let statsSelectedMembers = [];
 let statsGroupMemberUids = null;
+let officialStatsPromise = null;
+let activeStatsTab = 'overview';
 const $ = id => document.getElementById(id);
 const teamColors = {
   ferrari:     '#e8002d',
@@ -1782,7 +1784,6 @@ $('statsGroupSelect')?.addEventListener('change', async () => {
   }
 });
 
-let officialStatsPromise = null;
 const officialDriverName = d => d ? `${d.givenName || ''} ${d.familyName || ''}`.trim() : '—';
 async function loadOfficialStatsData() {
   if (officialStatsPromise) return officialStatsPromise;
@@ -1878,7 +1879,6 @@ async function loadOfficialStatsData() {
   })().catch(error => { officialStatsPromise = null; throw error; });
   return officialStatsPromise;
 }
-let activeStatsTab = 'overview';
 const statsEsc = value => safeText(String(value ?? '—'));
 function renderStatsDetail() {
   const root = $('statsDetailView'); if (!root) return;
