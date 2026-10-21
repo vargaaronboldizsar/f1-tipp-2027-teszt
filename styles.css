@@ -1563,3 +1563,23 @@ input[type="checkbox"],input[type="radio"] { accent-color:var(--team-color); }
   .track-panel .track-svg { height: 145px; }
   .track-panel .track-stats { grid-template-columns: minmax(0, 1fr) !important; }
 }
+
+/* V9.2 hotfix: preserve the full three-tyre lineup instead of cropping to the middle tyre. */
+.tyre-panel .tyre-lineup-photo {
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  aspect-ratio: 1280 / 300 !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  margin: 7px auto 8px !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.tyre-panel .panel-head span { display: none !important; }
+.tyre-panel .panel-head { white-space: nowrap; }
+@media (max-width: 760px) {
+  .tyre-panel .tyre-lineup-photo { height: auto !important; aspect-ratio: 1280 / 300 !important; }
+}
