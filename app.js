@@ -34,6 +34,7 @@ let statsSnapshotData = { users: [], scores: [], leaderboard: [], events: [], co
 let statsGroupMode = 'personal';
 let statsSelectedGroupId = '';
 let statsGroups = [];
+let statsSelectedMembers = [];
 let statsGroupMemberUids = null;
 const $ = id => document.getElementById(id);
 const teamColors = {
@@ -1659,8 +1660,6 @@ async function loadStatsGroups() {
     }
   }
 }
-
-let statsSelectedMembers = [];
 
 // A régebbi tippek eredetileg csak a saját users/{uid}/tips alatt voltak.
 // A csoporttagok privát tippjeit a Firestore Rules helyesen nem engedi másnak olvasni,
