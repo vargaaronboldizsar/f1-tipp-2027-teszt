@@ -29,6 +29,12 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig), auth = getAuth(app), db = getFirestore(app), provider = new GoogleAuthProvider();
 let currentUser = null;
+// A ranglista/statisztika állapotváltozói a navigációs események előtt inicializálódjanak.
+let statsSnapshotData = { users: [], scores: [], leaderboard: [], events: [], components: [], officialEvents: null, tipsByEvent: {} };
+let statsGroupMode = 'personal';
+let statsSelectedGroupId = '';
+let statsGroups = [];
+let statsGroupMemberUids = null;
 const $ = id => document.getElementById(id);
 const teamColors = {
   ferrari:     '#e8002d',
@@ -1602,12 +1608,6 @@ function eventSortValue(score) {
   const m = String(score.raceId || '').match(/^(\d+)/);
   return (m ? Number(m[1]) : 999) * 10 + (score.eventType === 'sprint' ? 0 : 1);
 }
-
-let statsSnapshotData = { users: [], scores: [], leaderboard: [], events: [], components: [], officialEvents: null, tipsByEvent: {} };
-let statsGroupMode = 'personal';
-let statsSelectedGroupId = '';
-let statsGroups = [];
-let statsGroupMemberUids = null;
 
 async function loadStatsGroups() {
   const select = $('statsGroupSelect');
