@@ -70,7 +70,7 @@ function toast(message) { const t = $('toast'); t.textContent = message; t.class
 // -----------------------------------------------------------------------------
 // 2. Profilbeállítások mentése, Google-bejelentkezés és munkamenet kezelése
 // -----------------------------------------------------------------------------
-$('settingsCancel')?.addEventListener('click', () => $('settingsOverlay').classList.add('hidden'));
+
 
 $('saveProfileButton')?.addEventListener('click', async () => {
   if (!currentUser) {
@@ -96,6 +96,16 @@ $('saveProfileButton')?.addEventListener('click', async () => {
     displayName: username,
     email: currentUser.email || '',
     photoURL: currentUser.photoURL || '',
+    notificationPrefs: {
+      emailEnabled: $('emailNotificationsEnabled').checked,
+      emailNewsTeam: $('emailNewsTeam').checked,
+      emailNewsDriver: $('emailNewsDriver').checked,
+      emailRaceReminders: $('emailRaceReminders').checked,
+      pushEnabled: $('pushNotificationsEnabled').checked,
+      pushNewsTeam: $('pushNewsTeam').checked,
+      pushNewsDriver: $('pushNewsDriver').checked,
+      pushRaceReminders: $('pushRaceReminders').checked
+    },
     updatedAt: serverTimestamp()
   };
 
@@ -105,20 +115,30 @@ $('saveProfileButton')?.addEventListener('click', async () => {
     $('headerName').textContent = username;
     $('headerTeam').textContent = data.team.toUpperCase() + ' SZURKOLÓ';
     updateProfileIdentity(data);
-    $('settingsOverlay').classList.add('hidden');
-
-    toast('Profilbeállítások elmentve a Firebase-be.');
+    syncNotificationPreferenceUI();
+    toast('Profil és értesítési beállítások elmentve.');
   } catch (e) {
     $('profileStatus').textContent = 'Mentési hiba: ' + e.message;
   }
 });
+
+
+function syncNotificationPreferenceUI(){
+  const emailOn=$('emailNotificationsEnabled')?.checked, pushOn=$('pushNotificationsEnabled')?.checked;
+  $('emailNotificationOptions')?.classList.toggle('is-disabled',!emailOn);
+  $('pushNotificationOptions')?.classList.toggle('is-disabled',!pushOn);
+  ['emailNewsTeam','emailNewsDriver','emailRaceReminders'].forEach(id=>{const el=$(id);if(el)el.disabled=!emailOn;});
+  ['pushNewsTeam','pushNewsDriver','pushRaceReminders'].forEach(id=>{const el=$(id);if(el)el.disabled=!pushOn;});
+}
+['emailNotificationsEnabled','pushNotificationsEnabled'].forEach(id=>$(id)?.addEventListener('change',syncNotificationPreferenceUI));
+syncNotificationPreferenceUI();
 
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
 
   $('loginOpen').classList.toggle('hidden', !!user);
   $('logoutButton').classList.toggle('hidden', !user);
-  $('profileNavButton')?.classList.toggle('hidden', !user);
+  $('profileNavButton')?.classList.remove('hidden');
 
   $('headerName').textContent = user?.displayName || 'Vendég';
   $('headerTeam').textContent = user ? 'F1 Tipp 2026' : 'Jelentkezz be';
@@ -142,6 +162,16 @@ onAuthStateChanged(auth, async (user) => {
       const d = snap.data();
 
       $('username').value = d.username || '';
+      const np = d.notificationPrefs || {};
+      $('emailNotificationsEnabled').checked = !!np.emailEnabled;
+      $('emailNewsTeam').checked = np.emailNewsTeam !== false;
+      $('emailNewsDriver').checked = np.emailNewsDriver !== false;
+      $('emailRaceReminders').checked = np.emailRaceReminders !== false;
+      $('pushNotificationsEnabled').checked = !!np.pushEnabled;
+      $('pushNewsTeam').checked = np.pushNewsTeam !== false;
+      $('pushNewsDriver').checked = np.pushNewsDriver !== false;
+      $('pushRaceReminders').checked = np.pushRaceReminders !== false;
+      syncNotificationPreferenceUI();
       $('headerName').textContent = d.username || user.displayName || 'Versenyző';
       $('headerTeam').textContent = d.team
         ? d.team.toUpperCase() + ' SZURKOLÓ'
@@ -162,6 +192,7 @@ onAuthStateChanged(auth, async (user) => {
         themeMode: 'team',
         favoriteDriver: 'leclerc',
         helmetId: 'schumacher-2000',
+        notificationPrefs: {emailEnabled:false,emailNewsTeam:true,emailNewsDriver:true,emailRaceReminders:true,pushEnabled:false,pushNewsTeam:true,pushNewsDriver:true,pushRaceReminders:true},
         updatedAt: serverTimestamp()
       }, { merge: true });
 
@@ -431,8 +462,6 @@ function renderTyreShowcase(race, circuitId) {
     el.classList.toggle('is-medium', compoundCode(race.tyres?.medium) === el.dataset.compound);
     el.classList.toggle('is-soft', compoundCode(race.tyres?.soft) === el.dataset.compound);
   });
-  const statsTyres = $('statsTyres');
-  if (statsTyres) statsTyres.textContent = codes.length ? [...new Set(codes)].join(' · ') : '—';
   const source = $('tyreSource');
   if (source) source.textContent = race.tyres
     ? (race.tyreSource || 'Hivatalos hétvégi gumiválasztás · Firestore')
@@ -1166,12 +1195,12 @@ let selectedHelmetId='schumacher-2000', previewHelmetId='schumacher-2000', helme
 const teamNames={ferrari:'Ferrari',mclaren:'McLaren',mercedes:'Mercedes',redbull:'Red Bull',williams:'Williams',astonmartin:'Aston Martin',alpine:'Alpine',racingbulls:'Racing Bulls',audi:'Audi',haas:'Haas'};
 const driverNames={leclerc:'Charles Leclerc',hamilton:'Lewis Hamilton',verstappen:'Max Verstappen',norris:'Lando Norris',piastri:'Oscar Piastri',russell:'George Russell',alonso:'Fernando Alonso',sainz:'Carlos Sainz'};
 function helmetFor(id){return helmetCatalog.find(h=>h.id===id)||helmetCatalog.find(h=>h.id==='schumacher-2000')||helmetCatalog[0];}
-function updateProfileIdentity(d={}){const h=helmetFor(d.helmetId||selectedHelmetId);selectedHelmetId=d.helmetId||selectedHelmetId;const name=d.username||d.displayName||currentUser?.displayName||'Versenyző';$('profileDisplayName').textContent=name;$('profileMeta').textContent=`${teamNames[d.team]||'Ferrari'}-szurkoló · APEX F1 Tipp 2026`;$('profileUsername').textContent=d.username||'Nincs megadva';$('profileTeam').textContent=teamNames[d.team]||'Ferrari';$('profileDriver').textContent=driverNames[d.favoriteDriver]||'Charles Leclerc';$('profileAvatarLarge').className='helmet-avatar helmet-avatar-image';$('profileAvatarLarge').innerHTML=`<img src="${h.imageUrl}" alt="${h.name} ${h.year} sisak">`; $('profileBadgeRow').innerHTML='<span class="profile-badge">🏁 APEX GRID MEMBER</span>';renderHelmetGallery();}
+function updateProfileIdentity(d={}){const h=helmetFor(d.helmetId||selectedHelmetId);selectedHelmetId=d.helmetId||selectedHelmetId;const name=d.username||d.displayName||currentUser?.displayName||'Versenyző';$('profileDisplayName').textContent=name;$('profileMeta').textContent=`${teamNames[d.team]||'Ferrari'}-szurkoló · APEX F1 Tipp 2026`;$('profileUsername').textContent=d.username||'Nincs megadva';$('profileTeam').textContent=teamNames[d.team]||'Ferrari';$('profileDriver').textContent=driverNames[d.favoriteDriver]||'Charles Leclerc';$('profileAvatarLarge').className='helmet-avatar helmet-avatar-image';$('profileAvatarLarge').innerHTML=`<img src="${h.imageUrl}" alt="${h.name} ${h.year} sisak">`;const headerAvatar=$('headerAvatar');if(headerAvatar){headerAvatar.src=h.imageUrl;headerAvatar.classList.remove('hidden');headerAvatar.alt=`${h.name} sisak avatár`;}$('profileBadgeRow').innerHTML='<span class="profile-badge">🏁 APEX GRID MEMBER</span>';renderHelmetGallery();}
 function renderHelmetGallery(){const q=($('helmetSearch')?.value||'').toLocaleLowerCase('hu'),f=$('helmetYearFilter')?.value||helmetFilter;const list=helmetCatalog.filter(h=>{const y=Number(h.year);const inEra=f==='all'||f==='champion'||(f==='classic'&&y>=1950&&y<=1989)||(f==='modern'&&y>=1990&&y<=2023)||(f==='current'&&y>=2024);return inEra&&(`${h.name} ${h.year} ${h.team}`.toLocaleLowerCase('hu').includes(q));});$('helmetGallery').innerHTML=list.map(h=>`<button class="helmet-card ${h.id===previewHelmetId?'selected':''}" data-helmet-id="${h.id}"><span class="helmet-art"><img class="helmet-image" src="${h.imageUrl}" alt="${h.name} ${h.year} sisak" loading="lazy"></span><span class="helmet-card-copy"><strong>${h.name}</strong><small>${h.year} · ${h.team}</small><span class="helmet-tag">${h.tag}</span></span></button>`).join('')||'<p class="subtle">Nincs találat a keresésre.</p>';document.querySelectorAll('[data-helmet-id]').forEach(b=>b.addEventListener('click',()=>selectHelmet(b.dataset.helmetId)));const h=helmetFor(previewHelmetId);$('helmetPreviewArt').className='helmet-preview-art';$('helmetPreviewArt').innerHTML=`<img class="helmet-image helmet-image-large" src="${h.imageUrl}" alt="${h.name} ${h.year} sisak">`;$('helmetPreviewTag').textContent=h.tag;$('helmetPreviewName').textContent=`${h.name} · ${h.year}`;$('helmetPreviewMeta').textContent=`${h.team} · ${h.era==='champion'?'Világbajnoki szezon':h.era==='classic'?'Classic Legends':h.era==='current'?'Aktuális mezőny':'Modern Icons'}`;$('helmetPreviewDescription').textContent=h.desc;$('saveHelmetButton').textContent=h.id===selectedHelmetId?'✓ Ez a jelenlegi avatárod':'✓ Ezt az avatárt választom';}
 function selectHelmet(id){previewHelmetId=id;renderHelmetGallery();}
 document.querySelectorAll('[data-helmet-filter]').forEach(b=>b.addEventListener('click',()=>{helmetFilter=b.dataset.helmetFilter;document.querySelectorAll('[data-helmet-filter]').forEach(x=>x.classList.toggle('active',x===b));$('helmetYearFilter').value=helmetFilter;renderHelmetGallery();}));$('helmetSearch')?.addEventListener('input',renderHelmetGallery);$('helmetYearFilter')?.addEventListener('change',e=>{helmetFilter=e.target.value;document.querySelectorAll('[data-helmet-filter]').forEach(x=>x.classList.toggle('active',x.dataset.helmetFilter===helmetFilter));renderHelmetGallery();});
-$('saveHelmetButton')?.addEventListener('click',async()=>{if(!currentUser){$('helmetSaveStatus').textContent='A mentéshez jelentkezz be.';return;}selectedHelmetId=previewHelmetId;const b=$('saveHelmetButton');b.disabled=true;$('helmetSaveStatus').textContent='Mentés…';try{await setDoc(doc(db,'users',currentUser.uid),{helmetId:selectedHelmetId,updatedAt:serverTimestamp()},{merge:true});const h=helmetFor(selectedHelmetId);$('profileAvatarLarge').className='helmet-avatar helmet-avatar-image';$('profileAvatarLarge').innerHTML=`<img src="${h.imageUrl}" alt="${h.name} ${h.year} sisak">`;const av=$('headerAvatar');av.src='data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="50" fill="#101820"/><path d="M20 52 Q16 18 50 12 Q84 18 80 52 L72 77 L28 77Z" fill="${({ 'helmet-ferrari':'#e10600','helmet-mclaren':'#ff8000','helmet-mercedes':'#00d7b8','helmet-redbull':'#3671c6','helmet-classic':'#f4d23c','helmet-williams':'#1765d1','helmet-purple':'#6940a5'}[h.style]||'#e10600')}"/><path d="M23 47 Q50 37 77 47 L72 62 Q50 70 28 62Z" fill="#111923" stroke="#b9c6d4" stroke-width="3"/></svg>`);av.classList.remove('hidden');$('helmetSaveStatus').textContent='Az avatár elmentve a profilodba.';renderHelmetGallery();toast('Avatár mentve.');}catch(e){$('helmetSaveStatus').textContent='Mentési hiba: '+e.message;}finally{b.disabled=false;}});
-$('profileEditButton')?.addEventListener('click',()=>{if(!currentUser)return;$('settingsOverlay').classList.remove('hidden');});
+$('saveHelmetButton')?.addEventListener('click',async()=>{if(!currentUser){$('helmetSaveStatus').textContent='A mentéshez jelentkezz be.';return;}selectedHelmetId=previewHelmetId;const b=$('saveHelmetButton');b.disabled=true;$('helmetSaveStatus').textContent='Mentés…';try{await setDoc(doc(db,'users',currentUser.uid),{helmetId:selectedHelmetId,updatedAt:serverTimestamp()},{merge:true});const h=helmetFor(selectedHelmetId);$('profileAvatarLarge').className='helmet-avatar helmet-avatar-image';$('profileAvatarLarge').innerHTML=`<img src="${h.imageUrl}" alt="${h.name} ${h.year} sisak">`;const av=$('headerAvatar');if(av){av.src=h.imageUrl;av.classList.remove('hidden');av.alt=`${h.name} sisak avatár`;} $('helmetSaveStatus').textContent='Az avatár elmentve a profilodba és a fejlécbe.';renderHelmetGallery();toast('Sisakavatár mentve.');}catch(e){$('helmetSaveStatus').textContent='Mentési hiba: '+e.message;}finally{b.disabled=false;}});
+$('profileEditButton')?.addEventListener('click',()=>{ $('accountSettingsPanel')?.scrollIntoView({behavior:'smooth',block:'start'}); });
 async function loadProfileStats(){if(!currentUser)return;try{const snap=await getDoc(doc(db,'users',currentUser.uid));const d=snap.exists()?snap.data():{};updateProfileIdentity(d);const scoresSnap=await getDocs(collection(db,'users',currentUser.uid,'scores'));let total=0,hits=0,best=0; scoresSnap.forEach(x=>{const v=x.data();total+=Number(v.points||v.totalPoints||0);hits+=Number(v.hits||v.correctCount||0);best=Math.max(best,Number(v.points||v.totalPoints||0));});$('profilePoints').textContent=total||'—';$('profileHits').textContent=hits||'—';$('profileBest').textContent=best||'—';$('profileRank').textContent='—';}catch(e){console.info('Profilstatisztika nem elérhető',e);$('profilePoints').textContent='—';$('profileHits').textContent='—';$('profileBest').textContent='—';$('profileRank').textContent='—';}}
 
 function showOnlyPage(pageId) {
@@ -1197,69 +1226,23 @@ function showHomePage() {
   showOnlyPage('home');
 }
 
-// Személyre szabott híroldal: a profilban kiválasztott csapatra és pilótára épül.
-// A cikkhelyek nem jelenítenek meg kitalált híreket; az élő hírforrás-integráció külön feladat.
 function showNewsPage() {
-  const content = document.querySelector('.content');
-  if (!content) return;
-  let page = $('newsPage');
-  if (!page) {
-    page = document.createElement('section');
-    page.id = 'newsPage';
-    page.className = 'news-page';
-    const footer = content.querySelector('.footer');
-    if (footer) content.insertBefore(page, footer); else content.appendChild(page);
-  }
-
-  const teamSelect = $('teamSelect');
-  const driverSelect = $('driverSelect');
-  const teamKey = teamSelect?.value || 'ferrari';
-  const driverKey = driverSelect?.value || 'leclerc';
-  const teamLabel = teamSelect?.selectedOptions?.[0]?.textContent?.trim() || 'Kedvenc csapat';
-  const driverLabel = driverSelect?.selectedOptions?.[0]?.textContent?.trim() || 'Kedvenc pilóta';
-  const teamColor = teamColors[teamKey] || '#e10600';
-  const escNews = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-  const column = (kind, name, color) => {
-    const isTeam = kind === 'team';
-    const label = isTeam ? 'CSAPAT' : 'PILÓTA';
-    const title = isTeam ? `${name} hírei` : `${name} hírei`;
-    const desc = isTeam ? 'Hírek, technikai fejlesztések és csapatközlemények' : 'Interjúk, nyilatkozatok és versenyhírek';
-    const topics = isTeam
-      ? [['Technika','Fejlesztések','Technikai hírek és fejlesztések','Itt jelennek meg a kiválasztott csapathoz kapcsolódó, forrással ellátott cikkek.'],['Csapat','Közlemények','Hivatalos csapatközlemények','A hírkártyák az eredeti forrásra mutatnak majd.']]
-      : [['Interjú','Nyilatkozatok','Pilótainterjúk és nyilatkozatok','Itt jelennek meg a kedvenc pilótádról szóló, forrással ellátott cikkek.'],['Versenyzés','Pályán történtek','Versenyhírek és elemzések','A hírfolyam a beállított kedvenc pilótádhoz igazodik.']];
-    return `<section class="feed-column" style="--feed-color:${color}">
-      <header class="feed-column-head"><div class="feed-avatar">${isTeam?'🏁':'🏎️'}</div><div class="feed-heading"><h2>${escNews(title)}</h2><p>${escNews(desc)}</p></div><span class="feed-follow">${label}</span></header>
-      <div class="feed-cards">
-        <article class="feed-card feed-card-featured"><div class="feed-card-image"><span>${escNews(name)}</span><small>HÍRFOLYAM</small></div><div class="feed-card-content"><div class="feed-card-meta"><span>${escNews(name)}</span><span>Formula1.com</span></div><h3>${isTeam?'A csapat legfrissebb hírei':'A pilóta legfrissebb hírei'}</h3><p>${isTeam?'A csapat hírei, technikai fejlesztései és hivatalos közleményei egy helyen.':'A pilótához kapcsolódó interjúk, nyilatkozatok és versenyhírek egy helyen.'} Az élő, automatikusan frissülő cikklista bekötése még hátravan.</p><div class="feed-card-footer"><span>Hivatalos F1-hírforrás</span><a href="https://www.formula1.com/en/latest" target="_blank" rel="noopener noreferrer">Hírek megnyitása ↗</a></div></div></article>
-        ${topics.map(item=>`<article class="feed-card"><div class="feed-card-content"><div class="feed-card-meta"><span>${escNews(item[0])}</span><span>Hírkategória</span></div><h3>${escNews(item[2])}</h3><p>${escNews(item[3])}</p><div class="feed-card-footer"><span>${escNews(item[1])}</span><span class="feed-status">FORRÁSRA VÁR</span></div></div></article>`).join('')}
-      </div>
-    </section>`;
-  };
-  page.innerHTML = `
-    <div class="news-hero news-hero-feed" style="--hero-team:${teamColor}"><div class="news-hero-copy"><span class="eyebrow">APEX · SZEMÉLYRE SZABOTT PADDOCK</span><h1>Hírek</h1><p>Az F1 világa a kedvenc csapatodra és pilótádra szűrve.</p><div class="news-hero-chips"><span>✦ ${escNews(teamLabel)}</span><span>✦ ${escNews(driverLabel)}</span><span>MAGYAR HÍRFOLYAM</span></div></div><div class="news-hero-art" aria-hidden="true">APEX<span>F1</span></div></div>
-    <div class="news-feed-toolbar"><div><strong>Személyes hírfolyam</strong><p>A profilbeállításaidból veszi a kedvenc csapatot és pilótát.</p></div><div class="news-tabs" role="tablist" aria-label="Hírfolyam szűrése"><button class="active" data-feed-tab="both">Mindkettő</button><button data-feed-tab="team">Csapatom</button><button data-feed-tab="driver">Pilótám</button></div></div>
-    <div class="news-feed-grid" id="newsFeedGrid">${column('team',teamLabel,teamColor)}${column('driver',driverLabel,'#3671c6')}</div>
-    <div class="news-backend-note"><strong>Állapot: a személyre szabott felület visszaállítva.</strong><p>Az élő cikkek automatikus begyűjtése és magyar összefoglalása még nincs bekötve, ezért nem jelenítünk meg kitalált híreket. A következő lépés a stabil hírforrás és a szerveroldali fordítás integrációja.</p><a href="https://www.formula1.com/en/latest" target="_blank" rel="noopener noreferrer">Formula1.com hivatalos hírek ↗</a></div>`;
+  const content=document.querySelector('.content'); if(!content)return;
+  let page=$('newsPage'); if(!page){page=document.createElement('section');page.id='newsPage';page.className='news-page';content.appendChild(page);}
+  const tk=$('teamSelect')?.value||'ferrari', dk=$('driverSelect')?.value||'leclerc';
+  const teams={ferrari:'Ferrari',mclaren:'McLaren',mercedes:'Mercedes',redbull:'Red Bull',williams:'Williams',astonmartin:'Aston Martin',alpine:'Alpine',racingbulls:'Racing Bulls',audi:'Audi',haas:'Haas'};
+  const drivers={leclerc:'Charles Leclerc',hamilton:'Lewis Hamilton',verstappen:'Max Verstappen',norris:'Lando Norris',piastri:'Oscar Piastri',russell:'George Russell',antonelli:'Andrea Kimi Antonelli',alonso:'Fernando Alonso',stroll:'Lance Stroll',sainz:'Carlos Sainz',albon:'Alex Albon',gasly:'Pierre Gasly',ocon:'Esteban Ocon',bearman:'Oliver Bearman',lawson:'Liam Lawson',hadjar:'Isack Hadjar',hulkenberg:'Nico Hülkenberg',bortoleto:'Gabriel Bortoleto'};
+  const team=teams[tk]||tk,driver=drivers[dk]||dk;
+  const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const card=(name,type,title,desc,i)=>`<article class="news-demo-card"><div class="news-demo-art news-demo-art-${i}"><span>${esc(type)}</span></div><div class="news-demo-copy"><small>${esc(name)} · MINTA</small><h3>${esc(title)}</h3><p>${esc(desc)}</p><span class="news-demo-badge">DEMO – NINCS ÉLŐ FORRÁS</span></div></article>`;
+  page.innerHTML=`<div class="news-page-hero"><span class="eyebrow">APEX · SZEMÉLYRE SZABOTT PADDOCK</span><h1>Hírek</h1><p>Az F1 világa a kedvenc csapatodra és pilótádra szűrve.</p><div class="news-chip-row"><span>🏁 ${esc(team)}</span><span>🏎 ${esc(driver)}</span><span>Magyar hírfolyam</span></div></div><div class="news-feed-toolbar"><div><h2>Személyes hírfolyam</h2><p>A profilbeállításaidból veszi a kedvenceidet.</p></div><div class="news-tabs"><button class="active" data-feed-tab="both">Mindkettő</button><button data-feed-tab="team">Csapatom</button><button data-feed-tab="driver">Pilótám</button></div></div><div class="news-feed-grid" id="newsFeedGrid"><section class="news-feed-column" data-news-kind="team"><header><h2>${esc(team)} hírei</h2><span>CSAPAT</span></header>${card(team,'FEJLESZTÉS','Technikai fejlesztések és hétvégi felkészülés','Itt jelennek majd meg a kiválasztott csapat ellenőrzött, magyar összefoglalói.',1)}${card(team,'PADDOCK','Csapatnyilatkozatok és háttér','A hírkártyák a forráshoz vezető hivatkozást is tartalmazzák majd.',2)}</section><section class="news-feed-column" data-news-kind="driver"><header><h2>${esc(driver)} hírei</h2><span>PILÓTA</span></header>${card(driver,'INTERJÚ','Nyilatkozatok és versenyhírek','Itt jelennek majd meg a kedvenc pilótádhoz kapcsolódó hírek.',3)}${card(driver,'ELEMZÉS','Teljesítmény és versenyhétvége','A végleges rendszerben a forrás, a dátum és az eredeti cikk linkje is látszik majd.',4)}</section></div><div class="account-setting-note news-demo-note"><strong>Állapot:</strong> a személyre szabott felület helyreállítva; élő hírek, automatikus fordítás és értesítések bekötése következő fejlesztési lépés.</div>`;
   showOnlyPage('newsPage');
-  page.querySelectorAll('[data-feed-tab]').forEach(btn => btn.addEventListener('click', () => {
-    page.querySelectorAll('[data-feed-tab]').forEach(b => b.classList.toggle('active', b === btn));
-    const grid = $('newsFeedGrid');
-    grid.classList.toggle('feed-only-team', btn.dataset.feedTab === 'team');
-    grid.classList.toggle('feed-only-driver', btn.dataset.feedTab === 'driver');
-  }));
+  page.querySelectorAll('[data-feed-tab]').forEach(b=>b.addEventListener('click',()=>{page.querySelectorAll('[data-feed-tab]').forEach(x=>x.classList.toggle('active',x===b));const grid=$('newsFeedGrid');grid.classList.toggle('feed-only-team',b.dataset.feedTab==='team');grid.classList.toggle('feed-only-driver',b.dataset.feedTab==='driver');}));
 }
 
 function openSection(key) {
-  if (key === 'profile') { if (!currentUser) { $('loginOverlay').classList.remove('hidden'); $('loginStatus').textContent = 'A profilod megtekintéséhez jelentkezz be.'; return; } showOnlyPage('profilePage'); loadProfileStats(); return; }
-  if (key === 'settings') {
-    if (!currentUser) {
-      $('loginOverlay').classList.remove('hidden');
-      $('loginStatus').textContent = 'A beállításokhoz jelentkezz be.';
-      return;
-    }
-    $('settingsOverlay').classList.remove('hidden');
-    return;
-  }
+  if (key === 'profile') { if (!currentUser) { $('loginOverlay').classList.remove('hidden'); $('loginStatus').textContent = 'A fiókod megtekintéséhez jelentkezz be.'; return; } showOnlyPage('profilePage'); loadProfileStats(); return; }
+  if (key === 'settings') { if (!currentUser) { $('loginOverlay').classList.remove('hidden'); $('loginStatus').textContent = 'A fiókbeállításokhoz jelentkezz be.'; return; } showOnlyPage('profilePage'); $('accountSettingsPanel')?.scrollIntoView({behavior:'smooth',block:'start'}); return; }
   if (key === 'tips') { goTips(); return; }
   if (key === 'home') { showHomePage(); return; }
   if (key === 'teams') { showGroupsPage(); return; }
@@ -1269,6 +1252,7 @@ function openSection(key) {
   if (key === 'news') { showNewsPage(); return; }
   showHomePage();
   const messages = {
+    drivers: 'A pilótalista bekötése következik.',
     rules: 'A játékszabályok bekötése következik.'
   };
   toast(messages[key] || 'Ez a nézet később készül el.');
@@ -2617,3 +2601,23 @@ $('joinGroupButton')?.addEventListener('click', async () => {
     button.disabled = false;
   }
 });
+
+
+// PWA frissítéskezelés: új verzió esetén látható, biztonságos újratöltést kínálunk.
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  let pendingWorker = null;
+  const banner = document.getElementById('appUpdateBanner');
+  const applyButton = document.getElementById('applyAppUpdate');
+  navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(reg => {
+    const announce = () => { if (reg.waiting && navigator.serviceWorker.controller) { pendingWorker = reg.waiting; banner?.classList.remove('hidden'); } };
+    announce();
+    reg.addEventListener('updatefound', () => {
+      const worker = reg.installing; if (!worker) return;
+      worker.addEventListener('statechange', () => { if (worker.state === 'installed') announce(); });
+    });
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(()=>{}); });
+  }).catch(err => console.info('PWA frissítéskezelő nem érhető el:', err));
+  applyButton?.addEventListener('click', () => { if (pendingWorker) pendingWorker.postMessage({type:'SKIP_WAITING'}); else location.reload(); });
+  let reloadingForUpdate = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloadingForUpdate) { reloadingForUpdate = true; location.reload(); } });
+}

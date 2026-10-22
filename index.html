@@ -8,7 +8,7 @@
   <title>
    APEX &mdash; F1 Tipp 2026
   </title>
-  <link href="./styles.css" rel="stylesheet"/>
+  <link href="./styles.css?v=20261022-02" rel="stylesheet"/>
   <meta content="APEX F1 Tipp 2026 &ndash; versenyadatok, id&odblac;j&aacute;r&aacute;s &eacute;s profil." name="description"/>
    <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png"/>
   <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16.png"/>
@@ -68,7 +68,7 @@
      </button>
      <button data-nav="news">
       <span>
-       ◉
+       ▤
       </span>
       H&iacute;rek
      </button>
@@ -86,15 +86,9 @@
       </span>
       Szab&aacute;lyok
      </button>
-     <button data-nav="profile" class="hidden" id="profileNavButton">
+     <button data-nav="profile" id="profileNavButton">
       <span>♙</span>
-      Profil
-     </button>
-     <button data-nav="settings">
-      <span>
-       ⚙
-      </span>
-      Be&aacute;ll&iacute;t&aacute;sok
+      Fi&oacute;kom
      </button>
     </nav>
     <div class="sidebar-bottom">
@@ -537,15 +531,23 @@
          <small>
           EL&Odblac;Z&Eacute;SEK SZ&Aacute;MA
          </small>
-         <strong>—</strong>
-         <p>Ellenőrzött előzési adat még nem érhető el</p>
+         <strong>
+          API
+         </strong>
+         <p>
+          2026-os versenyadatok
+         </p>
         </div>
         <div class="mini-stat">
          <small>
           SAFETY CAR ES&Eacute;LY
          </small>
-         <strong>Nincs adat</strong>
-         <p>Nincs megbízható, pályánkénti becslés</p>
+         <strong>
+          Friss&uuml;l
+         </strong>
+         <p>
+          p&aacute;lyaf&uuml;gg&odblac; profil
+         </p>
         </div>
         <div class="mini-stat">
          <small>
@@ -572,8 +574,12 @@
          <small>
           K&ouml;rrekord
          </small>
-         <strong id="recordLap">—</strong>
-         <p>Hivatalos körrekord-adat nem érhető el</p>
+         <strong id="recordLap">
+          API
+         </strong>
+         <p>
+          p&aacute;lyarekord &ndash; k&eacute;s&odblac;bbi bek&ouml;t&eacute;s
+         </p>
         </div>
         <div class="record">
          <span class="record-icon">
@@ -582,8 +588,12 @@
          <small>
           Legt&ouml;bb gy&odblac;zelem
          </small>
-         <strong id="recordWinner">—</strong>
-         <p>Pályához tartozó győzelmi rekord nincs bekötve</p>
+         <strong id="recordWinner">
+          API
+         </strong>
+         <p>
+          legt&ouml;bb gy&odblac;zelem &ndash; k&eacute;s&odblac;bbi bek&ouml;t&eacute;s
+         </p>
         </div>
         <div class="record">
          <span class="record-icon">
@@ -592,8 +602,12 @@
          <small>
           Leggyorsabb verseny
          </small>
-         <strong id="recordRace">—</strong>
-         <p>Hivatalos versenyidő-rekord nem érhető el</p>
+         <strong id="recordRace">
+          API
+         </strong>
+         <p>
+          versenyrekord &ndash; k&eacute;s&odblac;bbi bek&ouml;t&eacute;s
+         </p>
         </div>
        </div>
       </div>
@@ -602,7 +616,7 @@
         &Eacute;rdekess&eacute;g
        </div>
        <div class="interesting" id="interestingFact">
-        ⓘ A kiválasztott futamhoz tartozó, forrással ellenőrzött pályainformáció itt jelenik meg.
+        ⓘ A Mexik&oacute;i Nagyd&iacute;j 2 285 m&eacute;terrel a tengerszint felett fekszik. A ritk&aacute;bb leveg&odblac; komoly kih&iacute;v&aacute;s a motoroknak &eacute;s az aerodinamik&aacute;nak.
        </div>
       </div>
      </section>
@@ -700,6 +714,34 @@
     <div class="profile-identity"><div id="profileAvatarLarge" class="helmet-avatar helmet-ferrari" aria-label="Kiválasztott sisak avatár"><span class="helmet-visor"></span></div><div class="profile-identity-text"><span class="season-chip">APEX GRID MEMBER</span><h1 id="profileDisplayName">Versenyző</h1><p id="profileMeta">Jelentkezz be a profilod megtekintéséhez</p><div class="profile-badges" id="profileBadgeRow"><span class="profile-badge">🏁 Újonc</span></div></div></div>
     <button class="secondary profile-edit-button" id="profileEditButton">Profil szerkesztése</button>
   </div>
+  <section class="panel account-settings-panel" id="accountSettingsPanel">
+    <div class="account-settings-heading"><div><span class="eyebrow">FIÓK ÉS SZEMÉLYRE SZABÁS</span><h2>Profil és beállítások</h2><p>Egy helyen kezelheted a profilodat, a kedvenceidet és a későbbi értesítéseidet.</p></div><span class="season-chip">Fiókbeállítások</span></div>
+    <div class="account-settings-grid">
+      <div class="account-setting-group"><h3>Profil</h3>
+        <label for="username">Felhasználónév</label><input id="username" class="account-input" placeholder="pl. ApexFan27" maxlength="24" autocomplete="nickname" />
+        <label for="teamSelect">Kedvenc csapat</label><select id="teamSelect" class="account-input"><option value="ferrari">Ferrari</option><option value="mclaren">McLaren</option><option value="mercedes">Mercedes</option><option value="redbull">Red Bull</option><option value="williams">Williams</option><option value="astonmartin">Aston Martin</option><option value="alpine">Alpine</option><option value="racingbulls">Racing Bulls</option><option value="audi">Audi</option><option value="haas">Haas</option></select>
+        <label for="driverSelect">Kedvenc pilóta</label><select id="driverSelect" class="account-input"><option value="leclerc">Charles Leclerc</option><option value="hamilton">Lewis Hamilton</option><option value="verstappen">Max Verstappen</option><option value="norris">Lando Norris</option><option value="piastri">Oscar Piastri</option><option value="russell">George Russell</option><option value="antonelli">Andrea Kimi Antonelli</option><option value="alonso">Fernando Alonso</option><option value="stroll">Lance Stroll</option><option value="sainz">Carlos Sainz</option><option value="albon">Alex Albon</option><option value="gasly">Pierre Gasly</option><option value="ocon">Esteban Ocon</option><option value="bearman">Oliver Bearman</option><option value="lawson">Liam Lawson</option><option value="hadjar">Isack Hadjar</option><option value="hulkenberg">Nico Hülkenberg</option><option value="bortoleto">Gabriel Bortoleto</option></select>
+        <label class="account-check"><input id="standardTheme" type="checkbox" /> Standard piros téma (csapatszín helyett)</label>
+      </div>
+      <div class="account-setting-group"><h3>Értesítések és e-mail</h3>
+        <p class="account-setting-note">Most elmentjük a preferenciáidat; a tényleges küldést külön szerveroldali lépésben kötjük be.</p>
+        <label class="account-check"><input id="emailNotificationsEnabled" type="checkbox" /> E-mail értesítések engedélyezése</label>
+        <div class="account-nested-options" id="emailNotificationOptions">
+          <label class="account-check"><input id="emailNewsTeam" type="checkbox" /> Hírek a kedvenc csapatomról</label>
+          <label class="account-check"><input id="emailNewsDriver" type="checkbox" /> Hírek a kedvenc pilótámról</label>
+          <label class="account-check"><input id="emailRaceReminders" type="checkbox" /> Futam előtti emlékeztetők</label>
+        </div>
+        <label class="account-check"><input id="pushNotificationsEnabled" type="checkbox" /> Böngészős / telefonos értesítések engedélyezése</label>
+        <div class="account-nested-options" id="pushNotificationOptions">
+          <label class="account-check"><input id="pushNewsTeam" type="checkbox" /> Hírek a kedvenc csapatomról</label>
+          <label class="account-check"><input id="pushNewsDriver" type="checkbox" /> Hírek a kedvenc pilótámról</label>
+          <label class="account-check"><input id="pushRaceReminders" type="checkbox" /> Futam előtti emlékeztetők</label>
+        </div>
+        <p class="account-setting-note">A telefonos push értesítésekhez engedélykérés, push-előfizetés és háttérszolgáltatás is szükséges; a kapcsolók önmagukban még nem küldenek értesítést.</p>
+      </div>
+    </div>
+    <div class="account-settings-actions"><button class="primary" id="saveProfileButton">Beállítások mentése</button><p id="profileStatus" role="status" aria-live="polite"></p></div>
+  </section>
   <div class="profile-stat-grid"><article class="panel profile-stat"><small>ÖSSZPONTSZÁM</small><strong id="profilePoints">—</strong><span>Szezonpontok</span></article><article class="panel profile-stat"><small>RANGLISTAHELY</small><strong id="profileRank">—</strong><span>Helyezés a játékosok között</span></article><article class="panel profile-stat"><small>TELITALÁLATOK</small><strong id="profileHits">—</strong><span>Helyes tippek</span></article><article class="panel profile-stat"><small>LEGJOBB FUTAM</small><strong id="profileBest">—</strong><span>Egy eseményen szerzett pont</span></article></div>
   <section class="panel helmet-gallery-panel"><div class="gallery-heading"><div><span class="eyebrow">PERSONALIZE YOUR GRID ID</span><h2>Avatárom kiválasztása</h2><p>Válassz ikonikus F1-es sisakok által inspirált avatárt a profilodhoz.</p></div><span class="gallery-note">A sisakok jelenleg stilizált avatár-illusztrációk. A fotóalapú, licencellenőrzött gyűjtemény külön bővíthető.</span></div>
     <div class="helmet-tabs" id="helmetTabs"><button class="active" data-helmet-filter="all">Összes</button><button data-helmet-filter="classic">Classic Legends <small>1950–1989</small></button><button data-helmet-filter="champion">World Champions <small>Bajnoki szezonok</small></button><button data-helmet-filter="modern">Modern Icons <small>1990–2023</small></button><button data-helmet-filter="current">Aktuális mezőny <small>2024–2026</small></button></div>
@@ -752,101 +794,6 @@
     </main>
    </div>
   </div>
-  <div class="login-overlay hidden" id="settingsOverlay">
-   <div class="login-box">
-    <h2>
-     Profilbe&aacute;ll&iacute;t&aacute;sok
-    </h2>
-   
-<label for="username">
-  Felhasználónév
-</label>
-<input
-  id="username"
-  placeholder="pl. ApexFan27"
-  maxlength="24"
-  autocomplete="nickname"
-  style="width:100%;padding:12px;margin:7px 0 14px;background:#071018;color:white;border:1px solid #2b3d4b;border-radius:8px"
-/>
-
-    <label for="teamSelect">
-     Kedvenc csapat
-    </label>
-    <select id="teamSelect" style="width:100%;padding:12px;margin:7px 0 14px;background:#071018;color:white;border:1px solid #2b3d4b;border-radius:8px">
-     <option value="ferrari">
-      Ferrari
-     </option>
-     <option value="mclaren">
-      McLaren
-     </option>
-     <option value="mercedes">
-      Mercedes
-     </option>
-     <option value="redbull">
-      Red Bull
-     </option>
-     <option value="williams">
-      Williams
-     </option>
-     <option value="astonmartin">
-      Aston Martin
-     </option>
-     <option value="alpine">
-      Alpine
-     </option>
-     <option value="racingbulls">
-      Racing Bulls
-     </option>
-     <option value="audi">
-      Audi
-     </option>
-     <option value="haas">
-      Haas
-     </option>
-    </select>
-    <label for="driverSelect">
-     Kedvenc pil&oacute;ta
-    </label>
-    <select id="driverSelect" style="width:100%;padding:12px;margin:7px 0 14px;background:#071018;color:white;border:1px solid #2b3d4b;border-radius:8px">
-     <option value="leclerc">
-      Charles Leclerc
-     </option>
-     <option value="hamilton">
-      Lewis Hamilton
-     </option>
-     <option value="verstappen">
-      Max Verstappen
-     </option>
-     <option value="norris">
-      Lando Norris
-     </option>
-     <option value="piastri">
-      Oscar Piastri
-     </option>
-     <option value="russell">
-      George Russell
-     </option>
-     <option value="alonso">
-      Fernando Alonso
-     </option>
-     <option value="sainz">
-      Carlos Sainz
-     </option>
-    </select>
-    <label>
-     <input id="standardTheme" type="checkbox"/>
-     Standard piros t&eacute;ma (csapatsz&iacute;n helyett)
-    </label>
-    <button class="primary" id="saveProfileButton">
-     Be&aacute;ll&iacute;t&aacute;sok ment&eacute;se
-    </button>
-    <button class="secondary" id="settingsCancel">
-     M&eacute;gse
-    </button>
-    <p id="profileStatus">
-    </p>
-   </div>
-  </div>
   <div class="login-overlay hidden" id="loginOverlay">
    <div class="login-box">
     <div class="brand-logo">
@@ -871,9 +818,9 @@
     </p>
    </div>
   </div>
-  <div class="toast hidden" id="toast" role="status">
-  </div>
-  <script src="./app.js" type="module">
+  <div class="toast hidden" id="toast" role="status"></div>
+  <div id="appUpdateBanner" class="app-update-banner hidden" role="status"><span>Új APEX-verzió érhető el.</span><button id="applyAppUpdate" type="button">Frissítés most</button></div>
+  <script src="./app.js?v=20261022-02" type="module">
   </script>
  </body>
 </html>
