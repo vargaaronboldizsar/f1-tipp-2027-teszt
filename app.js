@@ -34,10 +34,7 @@ let statsSnapshotData = { users: [], scores: [], leaderboard: [], events: [], co
 let statsGroupMode = 'personal';
 let statsSelectedGroupId = '';
 let statsGroups = [];
-let statsSelectedMembers = [];
 let statsGroupMemberUids = null;
-let officialStatsPromise = null;
-let activeStatsTab = 'overview';
 const $ = id => document.getElementById(id);
 const teamColors = {
   ferrari:     '#e8002d',
@@ -1590,7 +1587,7 @@ function goTips() {
   $(id).addEventListener('click', goTips);
 });
 
-$('raceDetailsButton')?.addEventListener('click', () => {
+$('raceDetailsButton').addEventListener('click', () => {
   toast('A versenyhétvége részleteinek bekötése később következik.');
 });
 
@@ -1663,6 +1660,7 @@ async function loadStatsGroups() {
   }
 }
 
+let statsSelectedMembers = [];
 
 // A régebbi tippek eredetileg csak a saját users/{uid}/tips alatt voltak.
 // A csoporttagok privát tippjeit a Firestore Rules helyesen nem engedi másnak olvasni,
@@ -1785,6 +1783,7 @@ $('statsGroupSelect')?.addEventListener('change', async () => {
   }
 });
 
+let officialStatsPromise = null;
 const officialDriverName = d => d ? `${d.givenName || ''} ${d.familyName || ''}`.trim() : '—';
 async function loadOfficialStatsData() {
   if (officialStatsPromise) return officialStatsPromise;
@@ -1792,44 +1791,22 @@ async function loadOfficialStatsData() {
     const season = 2026;
     // A hivatalos eredményeket a GitHub Actions szinkronizálja a Firestore-ba.
     // A kliens nem hívja közvetlenül a Jolpica API-t statisztikamegnyitáskor.
-    let schedule = [];
-    try {
-      const scheduleSnap = await getDoc(doc(db, 'officialSchedule', String(season)));
-      if (scheduleSnap.exists()) {
-        const scheduleData = scheduleSnap.data() || {};
-        schedule = Array.isArray(scheduleData.events) ? scheduleData.events : [];
-      }
-    } catch (error) {
-      console.warn('A Firestore-os hivatalos naptár nem olvasható, megpróbálom az API-t:', error.message);
+    const scheduleSnap = await getDoc(doc(db, 'officialSchedule', String(season)));
+    if (!scheduleSnap.exists()) {
+      throw new Error('A hivatalos versenynaptár még nincs eltárolva. Futtasd a GitHub Actions „Sync F1 official results” workflow-t.');
     }
-    // A futamlista akkor is megjelenik, ha a szinkronizáló workflow még nem töltötte fel a Firestore-t.
-    if (!schedule.length) {
-      const response = await fetch(`${API_BASE}/${season}/races/?limit=100`);
-      if (!response.ok) throw new Error(`A futamnaptár nem érhető el (HTTP ${response.status}).`);
-      const json = await response.json();
-      const races = json.MRData?.RaceTable?.Races || [];
-      for (const race of races) {
-        const common = { round: Number(race.round), raceName: race.raceName, circuitName: race.Circuit?.circuitName || '', date: race.date, race: { Circuit: race.Circuit } };
-        if (race.Sprint?.date || race.SprintQualifying?.date) schedule.push({ ...common, ...race.Sprint, key: `${race.round}-sprint`, round: Number(race.round), raceName: race.raceName, date: race.Sprint?.date || race.date, sprint: true });
-        schedule.push({ ...common, key: `${race.round}-gp`, sprint: false });
-      }
-    }
+    const scheduleData = scheduleSnap.data() || {};
+    const schedule = Array.isArray(scheduleData.events) ? scheduleData.events : [];
     const officialEvents = [];
     for (const item of schedule) {
-      let saved = {};
-      try {
-        const resultSnap = await getDoc(doc(db, 'officialResults', String(item.key)));
-        saved = resultSnap.exists() ? (resultSnap.data() || {}) : {};
-      } catch (error) {
-        console.warn(`Hivatalos eredmény nem olvasható (${item.key}):`, error.message);
-      }
+      const resultSnap = await getDoc(doc(db, 'officialResults', String(item.key)));
+      const saved = resultSnap.exists() ? (resultSnap.data() || {}) : {};
       const qualifying = Array.isArray(saved.qualifying) ? saved.qualifying : [];
       const results = Array.isArray(saved.results) ? saved.results : [];
       const q1 = qualifying.find(x => Number(x.position) === 1) || null;
       const win = results.find(x => Number(x.position) === 1) || null;
       const event = {
         ...item,
-        sprint: Boolean(item.sprint || String(item.key || '').endsWith('-sprint')),
         qualifying,
         results,
         poleDriver: q1 ? officialDriverName(q1.Driver) : '',
@@ -1902,6 +1879,7 @@ async function loadOfficialStatsData() {
   })().catch(error => { officialStatsPromise = null; throw error; });
   return officialStatsPromise;
 }
+let activeStatsTab = 'overview';
 const statsEsc = value => safeText(String(value ?? '—'));
 function renderStatsDetail() {
   const root = $('statsDetailView'); if (!root) return;
@@ -2034,7 +2012,35 @@ const components = [
         const filtered=officialEvents.filter(ev=>type==='all'||(type==='sprint'?ev.sprint:!ev.sprint));
         target.innerHTML=filtered.map((ev,index)=>{
           const tipKey=ev.key; const tips=Object.values(tipsByEvent).flat();
-          const eventScores=scores.filter(s=>String(s.raceId||s.scoreId)===tipKey || (ev.sprint && String(s.raceId||s.scoreId).endsWith('-sprint') && Number.parseInt(s.raceId||s.scoreId,10)===ev.round) || (!ev.sprint && String(s.raceId||s.scoreId)===String(ev.round)));
+          // APEX-eseménynév és hivatalos API-név egyeztetése. A korábbi
+          // „Maláj (Bahrein)” név ugyanazt az eseményt jelöli, mint a hivatalos
+          // „Bahrain Grand Prix in Malaysia”; az ID-eltérés miatt a pontrekord
+          // korábban kimaradt a részletekből.
+          const normalizeEventName = value => String(value || '')
+            .toLocaleLowerCase('hu')
+            .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')
+            .replace(/\\b(grand prix|grand prix|nagydij|gp|f1|sprint)\\b/g, ' ')
+            .replace(/[^a-z0-9]+/g, ' ').trim().replace(/\\s+/g, ' ');
+          const eventNameAliases = {
+            'malaj bahrein': 'bahrain malaysia',
+            'bahrain grand prix in malaysia': 'bahrain malaysia',
+            'malaj bahreini nagydij': 'bahrain malaysia'
+          };
+          const canonicalEventName = value => {
+            const normalized = normalizeEventName(value);
+            return eventNameAliases[normalized] || normalized;
+          };
+          const officialEventName = canonicalEventName(ev.raceName || ev.name || '');
+          const eventScores=scores.filter(s => {
+            const id = String(s.raceId || s.scoreId || '');
+            if (id === tipKey ||
+                (ev.sprint && id.endsWith('-sprint') && Number.parseInt(id,10) === ev.round) ||
+                (!ev.sprint && id === String(ev.round))) return true;
+            const storedName = canonicalEventName(s.raceName || s.eventName || '');
+            const sameName = storedName && officialEventName && storedName === officialEventName;
+            const storedSprint = s.eventType === 'sprint' || id.endsWith('-sprint');
+            return Boolean(sameName && Boolean(storedSprint) === Boolean(ev.sprint));
+          });
           const scoreFor=(uid,key)=>{const rec=eventScores.find(s=>s.uid===uid);if(!rec)return null;const aliases={pole:['polePoints','polePositionPoints','pole'],time:['timePoints','poleTimePoints','time'],winner:['winnerPoints','raceWinnerPoints','winner']};for(const f of aliases[key])if(rec[f]!==undefined&&rec[f]!==null)return Number(rec[f])||0;return null;};
           const totalFor=uid=>{const rec=eventScores.find(s=>s.uid===uid);return rec?scoreNum(rec,'total'):null;};
           const esc=statsEsc;
@@ -2116,54 +2122,7 @@ const components = [
     $('statsCompareA')?.addEventListener('change',update);$('statsCompareB')?.addEventListener('change',update);update();
   }
 }
-function activateStatsTab(button) {
-  if (!button || !button.matches('[data-stats-tab]')) return;
-  const nextTab = button.dataset.statsTab;
-  if (!['overview', 'events', 'categories', 'players', 'compare'].includes(nextTab)) return;
-  activeStatsTab = nextTab;
-  document.querySelectorAll('#statsSectionTabs [data-stats-tab]').forEach(tab => {
-    const active = tab === button;
-    tab.classList.toggle('active', active);
-    tab.setAttribute('aria-selected', String(active));
-  });
-  const root = $('statsDetailView');
-  const overview = nextTab === 'overview';
-  if (root) root.classList.toggle('hidden', overview);
-  const overviewCards = $('statsOverviewCards');
-  const mainGrid = document.querySelector('#statsPage .stats-main-grid');
-  const lowerGrid = document.querySelector('#statsPage .stats-lower-grid');
-  [overviewCards, mainGrid, lowerGrid].forEach(el => { if (el) el.classList.toggle('hidden', !overview); });
-  renderStatsDetail();
-  if (!overview && root) root.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-// Direct button listeners plus delegation: works even if the stats section is re-rendered.
-function bindStatsTabs() {
-  document.querySelectorAll('#statsSectionTabs [data-stats-tab]').forEach(button => {
-    if (button.dataset.statsBound === '1') return;
-    button.dataset.statsBound = '1';
-    button.addEventListener('click', event => {
-      event.preventDefault();
-      event.stopPropagation();
-      activateStatsTab(button);
-    });
-  });
-}
-bindStatsTabs();
-document.addEventListener('click', event => {
-  const button = event.target instanceof Element ? event.target.closest('#statsSectionTabs [data-stats-tab]') : null;
-  if (button) activateStatsTab(button);
-});
-
-async function readUserScores(uid) {
-  try {
-    const snap = await getDocs(collection(db, 'users', uid, 'scores'));
-    return snap.docs.map(d => ({ uid, scoreId: d.id, ...d.data() }));
-  } catch (error) {
-    console.warn(`A játékos pontjai nem olvashatók (${uid}); a Firestore Rules vagy a megosztott pontadat hiányozhat.`, error.message);
-    return [];
-  }
-}
+document.addEventListener('click', event=>{const button=event.target.closest('#statsSectionTabs [data-stats-tab]');if(!button)return;event.preventDefault();activeStatsTab=button.dataset.statsTab;document.querySelectorAll('#statsSectionTabs [data-stats-tab]').forEach(b=>{const active=b===button;b.classList.toggle('active',active);b.setAttribute('aria-selected',String(active));});renderStatsDetail();});
 
 async function loadScoreboard() {
   const rankingStatus = $('rankingStatus');
@@ -2204,7 +2163,10 @@ async function loadScoreboard() {
       console.info('A publikus játékoslista nem olvasható; az engedélyezett ismert játékoslista használata.', publicRosterError.message);
     }
     const users = [...userMap.values()].map(u => ({...u, username:u.username || u.displayName || u.name || 'Versenyző'}));
-    const scoreResults = await Promise.all(users.map(user => readUserScores(user.uid)));
+    const scoreResults = await Promise.all(users.map(async user => {
+      const snap = await getDocs(collection(db, 'users', user.uid, 'scores'));
+      return snap.docs.map(d => ({ uid: user.uid, scoreId: d.id, ...d.data() }));
+    }));
     const scores = scoreResults.flat().filter(s => Number(s.year ?? s.season ?? 2026) === 2026).map(s => ({...s, total:scoreNum(s,'total'), name: users.find(u=>u.uid===s.uid)?.username || 'Versenyző'}));
     // A globális ranglista és a statisztikai nézet külön adatforrást kap.
     // Így a ranglista megmarad, a statisztika viszont kizárólag a kiválasztott
@@ -2226,8 +2188,9 @@ async function loadScoreboard() {
       if (globalUidSet.has(user.uid)) {
         return scores.filter(score => score.uid === user.uid);
       }
-      const readableScores = await readUserScores(user.uid);
-      return readableScores
+      const snap = await getDocs(collection(db, 'users', user.uid, 'scores'));
+      return snap.docs
+        .map(d => ({ uid: user.uid, scoreId: d.id, ...d.data() }))
         .filter(score => Number(score.year ?? score.season ?? 2026) === 2026)
         .map(score => ({
           ...score,
