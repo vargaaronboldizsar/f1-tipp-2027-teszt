@@ -1190,3 +1190,6 @@ input[type="checkbox"],input[type="radio"] { accent-color:var(--team-color); }
 .bar-row.data-unavailable .bar i { opacity: .22; }
 .hero-status:empty { display: none; }
 @media (max-width: 1100px) { .track-panel .track-layout { grid-template-columns: minmax(0, 1fr); } .track-panel .track-svg { height: 130px; } .track-panel .track-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 12px; } }
+
+/* Különálló sisakavatár-képek */
+.helmet-image{display:block;width:100%;height:100%;object-fit:contain;padding:5px}.helmet-image-large{max-width:100%;max-height:100%;padding:10px}.helmet-avatar-image{background:#080d12;overflow:hidden;border:0!important;box-shadow:none!important;border-radius:50%}.helmet-avatar-image img{width:100%;height:100%;object-fit:cover}.helmet-preview-art .helmet-image-large{width:100%;height:100%}.helmet-art{height:118px}
