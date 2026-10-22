@@ -36,7 +36,7 @@ let statsSelectedGroupId = '';
 let statsGroups = [];
 let statsGroupMemberUids = null;
 let statsSelectedMembers = [];
-let officialStatsPromise = null;
+let officialStatsPromise = null; // A hivatalos statisztikák promise-a minden függvényhívás előtt inicializálódik.
 const $ = id => document.getElementById(id);
 const teamColors = {
   ferrari:     '#e8002d',
