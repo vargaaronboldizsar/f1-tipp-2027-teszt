@@ -431,6 +431,8 @@ function renderTyreShowcase(race, circuitId) {
     el.classList.toggle('is-medium', compoundCode(race.tyres?.medium) === el.dataset.compound);
     el.classList.toggle('is-soft', compoundCode(race.tyres?.soft) === el.dataset.compound);
   });
+  const statsTyres = $('statsTyres');
+  if (statsTyres) statsTyres.textContent = codes.length ? [...new Set(codes)].join(' · ') : '—';
   const source = $('tyreSource');
   if (source) source.textContent = race.tyres
     ? (race.tyreSource || 'Hivatalos hétvégi gumiválasztás · Firestore')
@@ -1177,13 +1179,13 @@ function showOnlyPage(pageId) {
   if (!content) return;
   [...content.children].forEach(el => {
     const isFooter = el.classList.contains('footer');
-    const isPage = ['tipsPage', 'groupsPage', 'rankingPage', 'statsPage', 'calendarPage', 'profilePage'].includes(el.id);
+    const isPage = ['tipsPage', 'groupsPage', 'rankingPage', 'statsPage', 'calendarPage', 'profilePage', 'newsPage'].includes(el.id);
     if (isPage) el.classList.toggle('hidden', el.id !== pageId);
     else el.classList.toggle('hidden', pageId !== 'home' && !isFooter);
   });
   if (pageId === 'home') {
     [...content.children].forEach(el => {
-      if (!['tipsPage', 'groupsPage', 'rankingPage', 'statsPage', 'calendarPage', 'profilePage'].includes(el.id)) el.classList.remove('hidden');
+      if (!['tipsPage', 'groupsPage', 'rankingPage', 'statsPage', 'calendarPage', 'profilePage', 'newsPage'].includes(el.id)) el.classList.remove('hidden');
     });
   }
 }
@@ -1194,6 +1196,59 @@ function showTipsPage() {
 function showHomePage() {
   showOnlyPage('home');
 }
+
+// Személyre szabott híroldal: a profilban kiválasztott csapatra és pilótára épül.
+// A cikkhelyek nem jelenítenek meg kitalált híreket; az élő hírforrás-integráció külön feladat.
+function showNewsPage() {
+  const content = document.querySelector('.content');
+  if (!content) return;
+  let page = $('newsPage');
+  if (!page) {
+    page = document.createElement('section');
+    page.id = 'newsPage';
+    page.className = 'news-page';
+    const footer = content.querySelector('.footer');
+    if (footer) content.insertBefore(page, footer); else content.appendChild(page);
+  }
+
+  const teamSelect = $('teamSelect');
+  const driverSelect = $('driverSelect');
+  const teamKey = teamSelect?.value || 'ferrari';
+  const driverKey = driverSelect?.value || 'leclerc';
+  const teamLabel = teamSelect?.selectedOptions?.[0]?.textContent?.trim() || 'Kedvenc csapat';
+  const driverLabel = driverSelect?.selectedOptions?.[0]?.textContent?.trim() || 'Kedvenc pilóta';
+  const teamColor = teamColors[teamKey] || '#e10600';
+  const escNews = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  const column = (kind, name, color) => {
+    const isTeam = kind === 'team';
+    const label = isTeam ? 'CSAPAT' : 'PILÓTA';
+    const title = isTeam ? `${name} hírei` : `${name} hírei`;
+    const desc = isTeam ? 'Hírek, technikai fejlesztések és csapatközlemények' : 'Interjúk, nyilatkozatok és versenyhírek';
+    const topics = isTeam
+      ? [['Technika','Fejlesztések','Technikai hírek és fejlesztések','Itt jelennek meg a kiválasztott csapathoz kapcsolódó, forrással ellátott cikkek.'],['Csapat','Közlemények','Hivatalos csapatközlemények','A hírkártyák az eredeti forrásra mutatnak majd.']]
+      : [['Interjú','Nyilatkozatok','Pilótainterjúk és nyilatkozatok','Itt jelennek meg a kedvenc pilótádról szóló, forrással ellátott cikkek.'],['Versenyzés','Pályán történtek','Versenyhírek és elemzések','A hírfolyam a beállított kedvenc pilótádhoz igazodik.']];
+    return `<section class="feed-column" style="--feed-color:${color}">
+      <header class="feed-column-head"><div class="feed-avatar">${isTeam?'🏁':'🏎️'}</div><div class="feed-heading"><h2>${escNews(title)}</h2><p>${escNews(desc)}</p></div><span class="feed-follow">${label}</span></header>
+      <div class="feed-cards">
+        <article class="feed-card feed-card-featured"><div class="feed-card-image"><span>${escNews(name)}</span><small>HÍRFOLYAM</small></div><div class="feed-card-content"><div class="feed-card-meta"><span>${escNews(name)}</span><span>Formula1.com</span></div><h3>${isTeam?'A csapat legfrissebb hírei':'A pilóta legfrissebb hírei'}</h3><p>${isTeam?'A csapat hírei, technikai fejlesztései és hivatalos közleményei egy helyen.':'A pilótához kapcsolódó interjúk, nyilatkozatok és versenyhírek egy helyen.'} Az élő, automatikusan frissülő cikklista bekötése még hátravan.</p><div class="feed-card-footer"><span>Hivatalos F1-hírforrás</span><a href="https://www.formula1.com/en/latest" target="_blank" rel="noopener noreferrer">Hírek megnyitása ↗</a></div></div></article>
+        ${topics.map(item=>`<article class="feed-card"><div class="feed-card-content"><div class="feed-card-meta"><span>${escNews(item[0])}</span><span>Hírkategória</span></div><h3>${escNews(item[2])}</h3><p>${escNews(item[3])}</p><div class="feed-card-footer"><span>${escNews(item[1])}</span><span class="feed-status">FORRÁSRA VÁR</span></div></div></article>`).join('')}
+      </div>
+    </section>`;
+  };
+  page.innerHTML = `
+    <div class="news-hero news-hero-feed" style="--hero-team:${teamColor}"><div class="news-hero-copy"><span class="eyebrow">APEX · SZEMÉLYRE SZABOTT PADDOCK</span><h1>Hírek</h1><p>Az F1 világa a kedvenc csapatodra és pilótádra szűrve.</p><div class="news-hero-chips"><span>✦ ${escNews(teamLabel)}</span><span>✦ ${escNews(driverLabel)}</span><span>MAGYAR HÍRFOLYAM</span></div></div><div class="news-hero-art" aria-hidden="true">APEX<span>F1</span></div></div>
+    <div class="news-feed-toolbar"><div><strong>Személyes hírfolyam</strong><p>A profilbeállításaidból veszi a kedvenc csapatot és pilótát.</p></div><div class="news-tabs" role="tablist" aria-label="Hírfolyam szűrése"><button class="active" data-feed-tab="both">Mindkettő</button><button data-feed-tab="team">Csapatom</button><button data-feed-tab="driver">Pilótám</button></div></div>
+    <div class="news-feed-grid" id="newsFeedGrid">${column('team',teamLabel,teamColor)}${column('driver',driverLabel,'#3671c6')}</div>
+    <div class="news-backend-note"><strong>Állapot: a személyre szabott felület visszaállítva.</strong><p>Az élő cikkek automatikus begyűjtése és magyar összefoglalása még nincs bekötve, ezért nem jelenítünk meg kitalált híreket. A következő lépés a stabil hírforrás és a szerveroldali fordítás integrációja.</p><a href="https://www.formula1.com/en/latest" target="_blank" rel="noopener noreferrer">Formula1.com hivatalos hírek ↗</a></div>`;
+  showOnlyPage('newsPage');
+  page.querySelectorAll('[data-feed-tab]').forEach(btn => btn.addEventListener('click', () => {
+    page.querySelectorAll('[data-feed-tab]').forEach(b => b.classList.toggle('active', b === btn));
+    const grid = $('newsFeedGrid');
+    grid.classList.toggle('feed-only-team', btn.dataset.feedTab === 'team');
+    grid.classList.toggle('feed-only-driver', btn.dataset.feedTab === 'driver');
+  }));
+}
+
 function openSection(key) {
   if (key === 'profile') { if (!currentUser) { $('loginOverlay').classList.remove('hidden'); $('loginStatus').textContent = 'A profilod megtekintéséhez jelentkezz be.'; return; } showOnlyPage('profilePage'); loadProfileStats(); return; }
   if (key === 'settings') {
@@ -1211,9 +1266,9 @@ function openSection(key) {
   if (key === 'ranking') { showOnlyPage('rankingPage'); loadScoreboard(); return; }
   if (key === 'stats') { showOnlyPage('statsPage'); loadScoreboard(); return; }
   if (key === 'calendar') { showOnlyPage('calendarPage'); initCalendar(); return; }
+  if (key === 'news') { showNewsPage(); return; }
   showHomePage();
   const messages = {
-    drivers: 'A pilótalista bekötése következik.',
     rules: 'A játékszabályok bekötése következik.'
   };
   toast(messages[key] || 'Ez a nézet később készül el.');
