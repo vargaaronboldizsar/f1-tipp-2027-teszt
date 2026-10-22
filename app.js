@@ -36,6 +36,7 @@ let statsSelectedGroupId = '';
 let statsGroups = [];
 let statsGroupMemberUids = null;
 let statsSelectedMembers = [];
+let officialStatsPromise = null;
 const $ = id => document.getElementById(id);
 const teamColors = {
   ferrari:     '#e8002d',
@@ -1782,7 +1783,6 @@ $('statsGroupSelect')?.addEventListener('change', async () => {
   }
 });
 
-let officialStatsPromise = null;
 const officialDriverName = d => d ? `${d.givenName || ''} ${d.familyName || ''}`.trim() : '—';
 async function loadOfficialStatsData() {
   if (officialStatsPromise) return officialStatsPromise;
