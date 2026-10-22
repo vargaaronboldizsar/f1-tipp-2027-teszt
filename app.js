@@ -1590,7 +1590,7 @@ function goTips() {
   $(id).addEventListener('click', goTips);
 });
 
-$('raceDetailsButton').addEventListener('click', () => {
+$('raceDetailsButton')?.addEventListener('click', () => {
   toast('A versenyhétvége részleteinek bekötése később következik.');
 });
 
