@@ -2116,7 +2116,44 @@ const components = [
     $('statsCompareA')?.addEventListener('change',update);$('statsCompareB')?.addEventListener('change',update);update();
   }
 }
-document.addEventListener('click', event=>{const button=event.target.closest('#statsSectionTabs [data-stats-tab]');if(!button)return;event.preventDefault();activeStatsTab=button.dataset.statsTab;document.querySelectorAll('#statsSectionTabs [data-stats-tab]').forEach(b=>{const active=b===button;b.classList.toggle('active',active);b.setAttribute('aria-selected',String(active));});renderStatsDetail();});
+function activateStatsTab(button) {
+  if (!button || !button.matches('[data-stats-tab]')) return;
+  const nextTab = button.dataset.statsTab;
+  if (!['overview', 'events', 'categories', 'players', 'compare'].includes(nextTab)) return;
+  activeStatsTab = nextTab;
+  document.querySelectorAll('#statsSectionTabs [data-stats-tab]').forEach(tab => {
+    const active = tab === button;
+    tab.classList.toggle('active', active);
+    tab.setAttribute('aria-selected', String(active));
+  });
+  const root = $('statsDetailView');
+  const overview = nextTab === 'overview';
+  if (root) root.classList.toggle('hidden', overview);
+  const overviewCards = $('statsOverviewCards');
+  const mainGrid = document.querySelector('#statsPage .stats-main-grid');
+  const lowerGrid = document.querySelector('#statsPage .stats-lower-grid');
+  [overviewCards, mainGrid, lowerGrid].forEach(el => { if (el) el.classList.toggle('hidden', !overview); });
+  renderStatsDetail();
+  if (!overview && root) root.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Direct button listeners plus delegation: works even if the stats section is re-rendered.
+function bindStatsTabs() {
+  document.querySelectorAll('#statsSectionTabs [data-stats-tab]').forEach(button => {
+    if (button.dataset.statsBound === '1') return;
+    button.dataset.statsBound = '1';
+    button.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      activateStatsTab(button);
+    });
+  });
+}
+bindStatsTabs();
+document.addEventListener('click', event => {
+  const button = event.target instanceof Element ? event.target.closest('#statsSectionTabs [data-stats-tab]') : null;
+  if (button) activateStatsTab(button);
+});
 
 async function readUserScores(uid) {
   try {
