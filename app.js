@@ -42,6 +42,20 @@ let raceRefreshTimer = null;
 let countdownTimer = null;
 let currentBannerRaceKey = '';
 const $ = id => document.getElementById(id);
+// A statisztikai fülek kattintáskezelője korán regisztrálódik, hogy egy későbbi
+// inicializálási hiba se akadályozza meg a fülek közötti váltást.
+document.addEventListener('click', event => {
+  const button = event.target.closest('#statsSectionTabs [data-stats-tab]');
+  if (!button) return;
+  event.preventDefault();
+  activeStatsTab = button.dataset.statsTab;
+  document.querySelectorAll('#statsSectionTabs [data-stats-tab]').forEach(tab => {
+    const active = tab === button;
+    tab.classList.toggle('active', active);
+    tab.setAttribute('aria-selected', String(active));
+  });
+  renderStatsDetail();
+});
 const teamColors = {
   ferrari:     '#e8002d',
   mclaren:     '#ff8000',
@@ -2169,7 +2183,6 @@ const components = [
     $('statsCompareA')?.addEventListener('change',update);$('statsCompareB')?.addEventListener('change',update);update();
   }
 }
-document.addEventListener('click', event=>{const button=event.target.closest('#statsSectionTabs [data-stats-tab]');if(!button)return;event.preventDefault();activeStatsTab=button.dataset.statsTab;document.querySelectorAll('#statsSectionTabs [data-stats-tab]').forEach(b=>{const active=b===button;b.classList.toggle('active',active);b.setAttribute('aria-selected',String(active));});renderStatsDetail();});
 
 async function loadScoreboard() {
   const rankingStatus = $('rankingStatus');
