@@ -37,6 +37,10 @@ let statsGroups = [];
 let statsGroupMemberUids = null;
 let statsSelectedMembers = [];
 let officialStatsPromise = null; // A hivatalos statisztikák promise-a minden függvényhívás előtt inicializálódik.
+let activeStatsTab = 'overview'; // A statisztikai nézet állapota minden async callback előtt inicializálódik.
+let raceRefreshTimer = null;
+let countdownTimer = null;
+let currentBannerRaceKey = '';
 const $ = id => document.getElementById(id);
 const teamColors = {
   ferrari:     '#e8002d',
@@ -348,6 +352,36 @@ async function setTraitRows(profile) {
   }
 }
 function formatRaceDate(race) { const d = new Date(`${race.date}T${race.time || '12:00:00Z'}`); return d.toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }); }
+function getRaceStartMs(race) {
+  const date = String(race?.date || '');
+  const time = String(race?.time || '12:00:00Z');
+  const parsed = new Date(`${date}T${time}`).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+function getRaceKey(race) {
+  return String(race?.round || '') + ':' + String(race?.Circuit?.circuitId || '') + ':' + String(race?.date || '');
+}
+function selectCurrentOrNextRace(races, now = Date.now()) {
+  const ordered = [...races].filter(r => r?.date).sort((a, b) => getRaceStartMs(a) - getRaceStartMs(b));
+  // A futamnapon a versenyt mutatjuk akkor is, ha a rajt időpontja már elmúlt.
+  // A banner csak a rajt után 4 órával lép tovább, így nem vált át a verseny közben.
+  return ordered.find(r => getRaceStartMs(r) + 4 * 60 * 60 * 1000 > now) || ordered[ordered.length - 1] || null;
+}
+function setRaceBanner(race, circuitId) {
+  const hero = document.querySelector('.hero');
+  const statsHero = document.querySelector('.stats-hero');
+  const knownRaceImages = {
+    americas: './austin-gp-banner.png.png',
+    rodriguez: 'https://media.formula1.com/image/upload/f_auto,c_limit,w_1600,q_auto/content/dam/fom-website/manual/Misc/2026manual/2026Mexico/2026MexicoGP'
+  };
+  const image = race.heroImageUrl || knownRaceImages[circuitId] || '';
+  const base = 'linear-gradient(90deg,#020609 0%,#03090def 27%,#07101870 62%,#050a0e30),linear-gradient(0deg,#050a0e 0%,transparent 35%)';
+  const background = image ? `${base},url("${image}") center 42%/cover no-repeat` : `${base},linear-gradient(120deg,#101b25,#071018 55%,#241017)`;
+  if (hero) hero.style.background = background;
+  if (statsHero) statsHero.style.background = image
+    ? `linear-gradient(90deg,rgba(5,11,17,.98) 0%,rgba(5,11,17,.87) 42%,rgba(5,11,17,.24) 100%),url("${image}") center/cover no-repeat`
+    : 'linear-gradient(100deg,#09131d 0%,#0b1722 55%,#170b12 100%)';
+}
 async function loadRace() {
   let races = [];
   try {
@@ -356,42 +390,46 @@ async function loadRace() {
     const scheduleData = scheduleSnap.data() || {};
     races = Array.isArray(scheduleData.events) ? scheduleData.events : [];
     if (!races.length) throw Error('A Firestore versenynaptára üres.');
-  }
-  catch (e) {
+  } catch (e) {
     console.error('Firestore race calendar unavailable', e);
     $('heroStatus').textContent = 'A Firestore versenynaptára nem érhető el. Ellenőrizd a raceCalendars/2026 dokumentumot.';
     return;
   }
-  const now = Date.now();
-  const next = races.find(r => new Date(`${r.date}T${r.time || '12:00:00Z'}`).getTime() > now) || races[races.length - 1];
-  if (!next)
-    return;
+  const next = selectCurrentOrNextRace(races);
+  if (!next) return;
   const circuitId = next.Circuit?.circuitId || 'unknown';
+  const raceKey = getRaceKey(next);
+  currentBannerRaceKey = raceKey;
   let race = { name: next.raceName, circuit: next.Circuit?.circuitName || 'F1 pálya', date: `${next.date}T${next.time || '12:00:00Z'}`, lat: Number(next.Circuit?.Location?.lat) || 0, lon: Number(next.Circuit?.Location?.long) || 0, circuitId };
   const profile = profileFor(next);
   race = { ...race, ...profile };
-  // Race-specifikus tartalom szerkeszthető a Firestore races/2026-{circuitId} dokumentumban.
+  // A futamspecifikus tartalom (banner, gumi, pályaadatok) a races/2026-{circuitId} dokumentumból érkezhet.
   try {
     const snap = await getDoc(doc(db, 'races', `2026-${circuitId}`));
-    if (snap.exists())
-      race = { ...race, ...snap.data() };
+    if (snap.exists()) race = { ...race, ...snap.data() };
+  } catch (e) {
+    console.info('Race override not configured; using calendar data', e);
   }
-  catch (e) {
-    console.info('Race override not configured; using API data', e);
+  // Ellenőrzött Pirelli-kiosztás tartalékadatként, ha a futam override dokumentuma még nem tartalmazza.
+  // Austin: Pirelli 2026-10-09; Mexico City és São Paulo: ugyanazon hivatalos bejelentés.
+  const officialTyreFallbacks = {
+    americas: { hard: 'C2', medium: 'C3', soft: 'C4' },
+    rodriguez: { hard: 'C3', medium: 'C4', soft: 'C5' },
+    interlagos: { hard: 'C3', medium: 'C4', soft: 'C5' }
+  };
+  if (!race.tyres && officialTyreFallbacks[circuitId]) {
+    race.tyres = officialTyreFallbacks[circuitId];
+    race.tyreSource = 'Hivatalos Pirelli-kiosztás · 2026';
   }
   $('heroTitle').textContent = (race.heroTitle || race.name).toUpperCase();
-  $('heroCircuit').textContent = race.circuit;
+  $('heroCircuit').textContent = race.circuit || next.Circuit?.circuitName || 'F1 pálya';
   $('heroDate').textContent = race.dateLabel || formatRaceDate(next);
-  $('heroStatus').textContent = `2026-os szezon · ${next.round ? 'Forduló ' + next.round : 'Következő futam'} · Firestore`;
+  $('heroStatus').textContent = `2026-os szezon · ${next.round ? 'Forduló ' + next.round : 'Következő futam'} · ${race.name}`;
   $('trackLength').textContent = race.length ? Number(race.length).toLocaleString('hu-HU', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' km' : '—';
   $('trackCorners').textContent = race.corners ?? '—';
   $('trackLaps').textContent = race.laps ?? '—';
   $('raceDistance').textContent = (race.length && race.laps) ? (race.length * race.laps).toLocaleString('hu-HU', { maximumFractionDigits: 3 }) + ' km' : '—';
-  if (race.heroImageUrl) {
-    document.querySelector('.hero').style.backgroundImage = `linear-gradient(90deg,#020609 0%,#03090def 27%,#07101870 62%,#050a0e30),linear-gradient(0deg,#050a0e 0%,transparent 35%),url("${race.heroImageUrl}")`;
-  }
-  // A pályarajzok a Firestore circuits kollekcióban teljes SVG-ként vannak tárolva.
-  // A korábbi kód csak egy trackSvgPath mezőt keresett, ezért az importált SVG nem jelent meg.
+  setRaceBanner(race, circuitId);
   loadCircuitSvg(circuitId, race.circuit).catch(error => {
     console.warn('Firestore pályarajz nem tölthető be:', error);
     const caption = document.querySelector('.track-panel .track-caption');
@@ -403,10 +441,21 @@ async function loadRace() {
   loadWeather(race, next).catch(e => { console.warn('Weather error', e); $('weatherSummary').textContent = 'Az előrejelzés jelenleg nem érhető el.'; $('weatherSource').textContent = 'Forrás: Open-Meteo · később próbáld újra.'; });
   updateCountdown(race.date);
   document.querySelectorAll('[data-category]').forEach(b => {
-    const small = b.querySelector('small'); if (small && b.dataset.category === 'winner')
-      small.textContent = 'Ki nyeri a ' + race.name + '-t?';
+    const small = b.querySelector('small'); if (small && b.dataset.category === 'winner') small.textContent = 'Ki nyeri a ' + race.name + '-t?';
   });
 }
+// Ha az oldal nyitva marad a futam végéig, percenként ellenőrizzük, hogy tovább kell-e lépni.
+if (raceRefreshTimer) clearInterval(raceRefreshTimer);
+raceRefreshTimer = setInterval(async () => {
+  try {
+    const snap = await getDoc(doc(db, 'raceCalendars', '2026'));
+    if (!snap.exists()) return;
+    const races = Array.isArray(snap.data()?.events) ? snap.data().events : [];
+    const selected = selectCurrentOrNextRace(races);
+    if (selected && getRaceKey(selected) !== currentBannerRaceKey) await loadRace();
+  } catch (error) { console.warn('Következő futam ellenőrzése sikertelen:', error); }
+}, 60 * 1000);
+
 function renderTyreShowcase(race, circuitId) {
   const entries = [
     ['hard', race.tyres?.hard],
@@ -523,7 +572,7 @@ function updateCountdown(dateString) {
       $('seconds').textContent = '00';
       return;
     } $('days').textContent = Math.floor(diff / 86400000).toString().padStart(2, '0'); $('hours').textContent = Math.floor(diff % 86400000 / 3600000).toString().padStart(2, '0'); $('minutes').textContent = Math.floor(diff % 3600000 / 60000).toString().padStart(2, '0'); $('seconds').textContent = Math.floor(diff % 60000 / 1000).toString().padStart(2, '0');
-  } tick(); setInterval(tick, 1000);
+  } tick(); if (countdownTimer) clearInterval(countdownTimer); countdownTimer = setInterval(tick, 1000);
 }
 loadRace();
 // -----------------------------------------------------------------------------
@@ -1878,7 +1927,6 @@ async function loadOfficialStatsData() {
   })().catch(error => { officialStatsPromise = null; throw error; });
   return officialStatsPromise;
 }
-let activeStatsTab = 'overview';
 const statsEsc = value => safeText(String(value ?? '—'));
 function renderStatsDetail() {
   const root = $('statsDetailView'); if (!root) return;
