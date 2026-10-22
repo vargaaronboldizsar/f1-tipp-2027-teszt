@@ -715,17 +715,28 @@
     <button class="secondary profile-edit-button" id="profileEditButton">Profil szerkesztése</button>
   </div>
   <section class="panel account-settings-panel" id="accountSettingsPanel">
+    <div class="account-layout">
+      <nav class="account-side-nav" aria-label="Fiókbeállítások">
+        <div class="account-side-brand"><span class="account-side-mark">A</span><div><strong>FIÓKOM</strong><small>APEX GRID MEMBER</small></div></div>
+        <button type="button" class="account-nav-item active" data-account-jump="accountProfileGroup"><span>◉</span> Alapadatok</button>
+        <button type="button" class="account-nav-item" data-account-jump="accountFavoritesGroup"><span>★</span> Kedvencek</button>
+        <button type="button" class="account-nav-item" data-account-jump="helmetGallerySection"><span>◈</span> Sisakavatár</button>
+        <button type="button" class="account-nav-item" data-account-jump="accountNotificationsGroup"><span>♧</span> Értesítések</button>
+        <button type="button" class="account-nav-item" data-account-jump="accountEmailGroup"><span>✉</span> E-mail beállítások</button>
+        <div class="account-side-foot"><span class="account-live-dot"></span> Profil szinkronizálás<br><small>Firestore-profilodhoz kapcsolva</small></div>
+      </nav>
+      <div class="account-main">
     <div class="account-settings-heading"><div><span class="eyebrow">FIÓK ÉS SZEMÉLYRE SZABÁS</span><h2>Profil és beállítások</h2><p>Egy helyen kezelheted a profilodat, a kedvenceidet és a későbbi értesítéseidet.</p></div><span class="season-chip">Fiókbeállítások</span></div>
     <div class="account-settings-grid">
-      <div class="account-setting-group"><h3>Profil</h3>
+      <div class="account-setting-group" id="accountProfileGroup"><h3>Alapadatok</h3>
         <label for="username">Felhasználónév</label><input id="username" class="account-input" placeholder="pl. ApexFan27" maxlength="24" autocomplete="nickname" />
-        <label for="teamSelect">Kedvenc csapat</label><select id="teamSelect" class="account-input"><option value="ferrari">Ferrari</option><option value="mclaren">McLaren</option><option value="mercedes">Mercedes</option><option value="redbull">Red Bull</option><option value="williams">Williams</option><option value="astonmartin">Aston Martin</option><option value="alpine">Alpine</option><option value="racingbulls">Racing Bulls</option><option value="audi">Audi</option><option value="haas">Haas</option></select>
+        <div id="accountFavoritesGroup" class="account-subsection-anchor"></div><label for="teamSelect">Kedvenc csapat</label><select id="teamSelect" class="account-input"><option value="ferrari">Ferrari</option><option value="mclaren">McLaren</option><option value="mercedes">Mercedes</option><option value="redbull">Red Bull</option><option value="williams">Williams</option><option value="astonmartin">Aston Martin</option><option value="alpine">Alpine</option><option value="racingbulls">Racing Bulls</option><option value="audi">Audi</option><option value="haas">Haas</option></select>
         <label for="driverSelect">Kedvenc pilóta</label><select id="driverSelect" class="account-input"><option value="leclerc">Charles Leclerc</option><option value="hamilton">Lewis Hamilton</option><option value="verstappen">Max Verstappen</option><option value="norris">Lando Norris</option><option value="piastri">Oscar Piastri</option><option value="russell">George Russell</option><option value="antonelli">Andrea Kimi Antonelli</option><option value="alonso">Fernando Alonso</option><option value="stroll">Lance Stroll</option><option value="sainz">Carlos Sainz</option><option value="albon">Alex Albon</option><option value="gasly">Pierre Gasly</option><option value="ocon">Esteban Ocon</option><option value="bearman">Oliver Bearman</option><option value="lawson">Liam Lawson</option><option value="hadjar">Isack Hadjar</option><option value="hulkenberg">Nico Hülkenberg</option><option value="bortoleto">Gabriel Bortoleto</option></select>
         <label class="account-check"><input id="standardTheme" type="checkbox" /> Standard piros téma (csapatszín helyett)</label>
       </div>
-      <div class="account-setting-group"><h3>Értesítések és e-mail</h3>
+      <div class="account-setting-group" id="accountNotificationsGroup"><h3>Értesítések</h3>
         <p class="account-setting-note">Most elmentjük a preferenciáidat; a tényleges küldést külön szerveroldali lépésben kötjük be.</p>
-        <label class="account-check"><input id="emailNotificationsEnabled" type="checkbox" /> E-mail értesítések engedélyezése</label>
+        <div id="accountEmailGroup" class="account-subsection-anchor"></div><label class="account-check"><input id="emailNotificationsEnabled" type="checkbox" /> E-mail értesítések engedélyezése</label>
         <div class="account-nested-options" id="emailNotificationOptions">
           <label class="account-check"><input id="emailNewsTeam" type="checkbox" /> Hírek a kedvenc csapatomról</label>
           <label class="account-check"><input id="emailNewsDriver" type="checkbox" /> Hírek a kedvenc pilótámról</label>
@@ -740,10 +751,12 @@
         <p class="account-setting-note">A telefonos push értesítésekhez engedélykérés, push-előfizetés és háttérszolgáltatás is szükséges; a kapcsolók önmagukban még nem küldenek értesítést.</p>
       </div>
     </div>
-    <div class="account-settings-actions"><button class="primary" id="saveProfileButton">Beállítások mentése</button><p id="profileStatus" role="status" aria-live="polite"></p></div>
+    <div class="account-settings-actions"><button class="primary" id="saveProfileButton">✓ Beállítások mentése</button><p id="profileStatus" role="status" aria-live="polite"></p></div>
+      </div>
+    </div>
   </section>
   <div class="profile-stat-grid"><article class="panel profile-stat"><small>ÖSSZPONTSZÁM</small><strong id="profilePoints">—</strong><span>Szezonpontok</span></article><article class="panel profile-stat"><small>RANGLISTAHELY</small><strong id="profileRank">—</strong><span>Helyezés a játékosok között</span></article><article class="panel profile-stat"><small>TELITALÁLATOK</small><strong id="profileHits">—</strong><span>Helyes tippek</span></article><article class="panel profile-stat"><small>LEGJOBB FUTAM</small><strong id="profileBest">—</strong><span>Egy eseményen szerzett pont</span></article></div>
-  <section class="panel helmet-gallery-panel"><div class="gallery-heading"><div><span class="eyebrow">PERSONALIZE YOUR GRID ID</span><h2>Avatárom kiválasztása</h2><p>Válassz ikonikus F1-es sisakok által inspirált avatárt a profilodhoz.</p></div><span class="gallery-note">A sisakok jelenleg stilizált avatár-illusztrációk. A fotóalapú, licencellenőrzött gyűjtemény külön bővíthető.</span></div>
+  <section class="panel helmet-gallery-panel" id="helmetGallerySection"><div class="gallery-heading"><div><span class="eyebrow">PERSONALIZE YOUR GRID ID</span><h2>Avatárom kiválasztása</h2><p>Válassz ikonikus F1-es sisakok által inspirált avatárt a profilodhoz.</p></div><span class="gallery-note">A sisakok jelenleg stilizált avatár-illusztrációk. A fotóalapú, licencellenőrzött gyűjtemény külön bővíthető.</span></div>
     <div class="helmet-tabs" id="helmetTabs"><button class="active" data-helmet-filter="all">Összes</button><button data-helmet-filter="classic">Classic Legends <small>1950–1989</small></button><button data-helmet-filter="champion">World Champions <small>Bajnoki szezonok</small></button><button data-helmet-filter="modern">Modern Icons <small>1990–2023</small></button><button data-helmet-filter="current">Aktuális mezőny <small>2024–2026</small></button></div>
     <div class="helmet-gallery-layout"><div><div class="helmet-search-row"><input id="helmetSearch" type="search" placeholder="Pilóta vagy sisak keresése…"/><select id="helmetYearFilter"><option value="all">Minden korszak</option><option value="classic">1950–1989</option><option value="champion">Világbajnokok</option><option value="modern">1990–2023</option><option value="current">2024–2026</option></select></div><div id="helmetGallery" class="helmet-gallery-grid"></div></div><aside class="helmet-preview panel"><div id="helmetPreviewArt" class="helmet-preview-art helmet-ferrari"><span class="helmet-visor"></span></div><span class="season-chip" id="helmetPreviewTag">BAJNOKI SISAK</span><h3 id="helmetPreviewName">Michael Schumacher · 2000</h3><p id="helmetPreviewMeta">Ferrari · Világbajnoki szezon</p><p id="helmetPreviewDescription">Válassz egy sisakot a galériából az előnézethez.</p><button class="primary" id="saveHelmetButton">✓ Ezt az avatárt választom</button><p class="profile-save-status" id="helmetSaveStatus" role="status"></p></aside></div>
   </section>

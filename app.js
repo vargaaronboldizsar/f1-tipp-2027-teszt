@@ -2621,3 +2621,12 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   let reloadingForUpdate = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloadingForUpdate) { reloadingForUpdate = true; location.reload(); } });
 }
+
+// Fiókom oldali gyorsnavigáció – a meglévő profilmezők és mentési logika megtartásával.
+document.querySelectorAll('[data-account-jump]').forEach(button => {
+  button.addEventListener('click', () => {
+    const target = document.getElementById(button.dataset.accountJump);
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document.querySelectorAll('.account-nav-item').forEach(item => item.classList.toggle('active', item === button));
+  });
+});
